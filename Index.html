@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pembaca Gestur Wajah - Akurat</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@0.0.3/dist/face-landmarks-detection.js"></script>
+    <title>Pembaca Gestur Wajah - Deteksi Gerakan</title>
     <style>
         * {
             margin: 0;
@@ -14,108 +12,180 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
         .container {
-            display: flex;
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: auto 1fr;
             height: 100vh;
-            position: relative;
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 20px 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 0;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 1.1em;
         }
 
         .video-section {
-            flex: 2;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 20px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .video-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            justify-items: center;
+        }
+
+        .video-container {
+            position: relative;
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
+            background: rgba(0,0,0,0.3);
+            border-radius: 15px;
             padding: 20px;
-            position: relative;
+            min-height: 400px;
         }
 
         #video {
             width: 100%;
             max-width: 640px;
             height: auto;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
             transform: scaleX(-1);
             background: #333;
+            object-fit: cover;
         }
 
-        .canvas-container {
+        #canvas {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scaleX(-1);
+            border-radius: 12px;
             pointer-events: none;
+            border: 2px solid #4ecdc4;
+            box-shadow: 0 0 20px rgba(76, 205, 196, 0.3);
         }
 
-        #canvas {
-            border-radius: 15px;
+        .video-status {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            text-align: center;
         }
 
-        .controls {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+        .status-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 12px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .status-title {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #4ecdc4;
         }
 
         .btn {
-            padding: 12px 20px;
+            padding: 14px 24px;
             border: none;
             border-radius: 25px;
-            background: rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.15);
             color: white;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
             transition: all 0.3s ease;
             backdrop-filter: blur(10px);
-            min-width: 150px;
+            border: 2px solid transparent;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .btn:hover {
-            background: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.25);
             transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
         }
 
         .btn:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
+            transform: none;
         }
 
         .btn.active {
-            background: rgba(76, 205, 196, 0.6);
-            border: 2px solid #4ecdc4;
+            background: rgba(76, 205, 196, 0.3);
+            border-color: #4ecdc4;
+            box-shadow: 0 0 20px rgba(76, 205, 196, 0.3);
         }
 
         .btn.danger {
-            background: rgba(255, 107, 107, 0.6);
+            background: rgba(255, 107, 107, 0.3);
+            border-color: #ff6b6b;
         }
 
-        .status {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            padding: 15px 20px;
-            background: rgba(0,0,0,0.7);
-            border-radius: 25px;
-            backdrop-filter: blur(10px);
+        .btn.danger:hover {
+            background: rgba(255, 107, 107, 0.4);
+            box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
         }
 
         .info-panel {
-            flex: 1;
-            padding: 30px;
-            background: rgba(0,0,0,0.2);
+            display: grid;
+            grid-template-rows: auto auto 1fr;
+            gap: 25px;
+            background: rgba(0,0,0,0.1);
+            border-radius: 20px;
+            padding: 25px;
             backdrop-filter: blur(10px);
-            border-left: 1px solid rgba(255,255,255,0.1);
-            overflow-y: auto;
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden;
         }
 
         .title {
@@ -145,32 +215,55 @@
             font-size: 4em;
             display: block;
             margin-bottom: 10px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
         }
 
         .gesture-name {
-            font-size: 1.5em;
+            font-size: 1.8em;
             margin-bottom: 10px;
+            font-weight: bold;
         }
 
-        .confidence {
-            font-size: 1.1em;
+        .activity-level {
+            font-size: 1.2em;
             margin-bottom: 15px;
         }
 
-        .confidence-bar {
+        .activity-bar {
             width: 100%;
-            height: 20px;
+            height: 25px;
             background: rgba(255,255,255,0.2);
-            border-radius: 10px;
+            border-radius: 12px;
             overflow: hidden;
+            position: relative;
         }
 
-        .confidence-fill {
+        .activity-fill {
             height: 100%;
-            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
-            border-radius: 10px;
+            background: linear-gradient(90deg, #ff6b6b 0%, #ffa500 50%, #4ecdc4 100%);
+            border-radius: 12px;
             transition: width 0.3s ease;
             width: 0%;
+        }
+
+        .detection-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 14px;
         }
 
         .history {
@@ -180,6 +273,7 @@
         .history h3 {
             margin-bottom: 15px;
             font-size: 1.3em;
+            color: #4ecdc4;
         }
 
         .history-item {
@@ -191,6 +285,18 @@
             background: rgba(255,255,255,0.05);
             border-radius: 10px;
             border-left: 4px solid #4ecdc4;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         .start-screen {
@@ -208,22 +314,22 @@
         }
 
         .start-screen h1 {
-            font-size: 3em;
+            font-size: 3.5em;
             margin-bottom: 20px;
             text-align: center;
         }
 
         .start-screen p {
-            font-size: 1.2em;
+            font-size: 1.3em;
             margin-bottom: 30px;
             text-align: center;
-            max-width: 500px;
-            line-height: 1.6;
+            max-width: 600px;
+            line-height: 1.8;
         }
 
         .start-btn {
             padding: 20px 40px;
-            font-size: 1.2em;
+            font-size: 1.3em;
             border: none;
             border-radius: 50px;
             background: linear-gradient(45deg, #4ecdc4, #45b7d1);
@@ -231,27 +337,19 @@
             cursor: pointer;
             margin: 10px;
             transition: all 0.3s ease;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
         }
 
         .start-btn:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
-        }
-
-        .loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            font-size: 1.5em;
+            transform: translateY(-4px);
+            box-shadow: 0 12px 35px rgba(0,0,0,0.3);
         }
 
         .hidden {
             display: none !important;
         }
 
-        .debug-info {
+        .sensor-display {
             position: absolute;
             top: 20px;
             right: 20px;
@@ -260,22 +358,152 @@
             border-radius: 10px;
             font-family: monospace;
             font-size: 12px;
-            max-width: 250px;
+            min-width: 200px;
+            border: 1px solid #4ecdc4;
+        }
+
+        .sensor-value {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .sensor-value:last-child {
+            border-bottom: none;
+        }
+
+        .value-high {
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+
+        .value-medium {
+            color: #ffa500;
+        }
+
+        .value-low {
+            color: #ff6b6b;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+                grid-template-rows: auto auto 1fr;
+            }
+            
+            .video-section {
+                grid-row: 2;
+            }
+            
+            .info-panel {
+                grid-row: 3;
+                max-height: 60vh;
+            }
         }
 
         @media (max-width: 768px) {
             .container {
-                flex-direction: column;
+                padding: 10px;
+                gap: 15px;
             }
             
-            .video-section {
-                flex: none;
-                height: 60vh;
+            .header h1 {
+                font-size: 2em;
             }
             
-            .info-panel {
-                flex: none;
-                height: 40vh;
+            .header p {
+                font-size: 1em;
+            }
+            
+            .video-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .btn {
+                padding: 12px 16px;
+                font-size: 12px;
+                min-width: auto;
+            }
+            
+            .sensor-display {
+                position: relative;
+                top: auto;
+                right: auto;
+                margin-top: 15px;
+                min-width: auto;
+                width: 100%;
+            }
+            
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .video-status {
+                grid-template-columns: 1fr;
+            }
+            
+            .gesture-emoji {
+                font-size: 2.5em;
+            }
+            
+            .gesture-name {
+                font-size: 1.3em;
+            }
+            
+            .history {
+                max-height: 300px;
+            }
+            
+            .history-item {
+                grid-template-columns: auto 1fr;
+                gap: 10px;
+            }
+            
+            .history-stats {
+                display: none;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 8px;
+                gap: 10px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .video-controls {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            
+            .btn {
+                width: 100%;
+            }
+            
+            .sensor-display {
+                font-size: 10px;
+                padding: 15px;
+            }
+            
+            .title {
+                font-size: 1.5em;
+            }
+            
+            .gesture-emoji {
+                font-size: 2em;
+            }
+            
+            .gesture-name {
+                font-size: 1.1em;
             }
         }
     </style>
@@ -283,60 +511,172 @@
 <body>
     <!-- Start Screen -->
     <div id="startScreen" class="start-screen">
-        <h1>🎭 Pembaca Gestur Wajah</h1>
-        <p>Aplikasi deteksi ekspresi wajah menggunakan TensorFlow.js dengan akurasi tinggi</p>
-        <button class="start-btn" onclick="startApp()">🚀 Mulai Deteksi</button>
-        <button class="start-btn" onclick="startDemo()" style="background: rgba(255,255,255,0.2);">👁️ Mode Demo</button>
-    </div>
-
-    <!-- Loading -->
-    <div id="loading" class="loading hidden">
-        <div>🤖 Memuat Model AI...</div>
+        <h1>🎭 Deteksi Gerakan Wajah</h1>
+        <p>Aplikasi ini mendeteksi aktivitas wajah berdasarkan perubahan pixel dan gerakan.<br>
+           Sistem akan merespons setiap gerakan wajah Anda secara real-time.</p>
+        <button class="start-btn" onclick="startApp()">🚀 Mulai Deteksi Gerakan</button>
     </div>
 
     <!-- Main App -->
     <div id="mainApp" class="container hidden">
-        <div class="video-section">
-            <video id="video" autoplay muted playsinline></video>
-            <div class="canvas-container">
-                <canvas id="canvas"></canvas>
-            </div>
+        <!-- Header Section -->
+        <div class="header">
+            <h1>🎭 Deteksi Gerakan Wajah</h1>
+            <p>Aplikasi canggih untuk mendeteksi aktivitas wajah secara real-time dengan teknologi analisis pixel</p>
+        </div>
 
-            <div class="controls">
+        <!-- Video Section -->
+        <div class="video-section">
+            <!-- Video Controls -->
+            <div class="video-controls">
                 <button id="toggleCamera" class="btn" onclick="toggleCamera()">📷 Nyalakan Kamera</button>
                 <button id="toggleDetection" class="btn" onclick="toggleDetection()" disabled>⏸️ Pause Deteksi</button>
                 <button class="btn danger" onclick="stopCamera()">🔴 Stop Kamera</button>
                 <button class="btn" onclick="goHome()">🏠 Kembali</button>
             </div>
 
-            <div id="status" class="status">Kamera Tidak Aktif</div>
+            <!-- Video Container -->
+            <div class="video-container">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="canvas"></canvas>
 
-            <div id="debugInfo" class="debug-info" style="display: none;">
-                <div>FPS: <span id="fps">0</span></div>
-                <div>Wajah: <span id="faceCount">0</span></div>
-                <div>Landmarks: <span id="landmarkCount">0</span></div>
+                <!-- Real-time Sensor Display -->
+                <div id="sensorDisplay" class="sensor-display">
+                    <div class="sensor-display-title">📊 Live Sensors</div>
+                    <div class="sensor-value">
+                        <span>Perubahan Pixel:</span>
+                        <span id="pixelChange" class="value-low">0%</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span>Intensitas Gerakan:</span>
+                        <span id="motionIntensity" class="value-low">0%</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span>Area Aktif:</span>
+                        <span id="activeArea" class="value-low">0%</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span>Aktivitas Global:</span>
+                        <span id="globalActivity" class="value-low">Diam</span>
+                    </div>
+                    <div class="sensor-value">
+                        <span>FPS:</span>
+                        <span id="fps" class="value-medium">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Cards -->
+            <div class="video-status">
+                <div class="status-card">
+                    <div class="status-title">Status Sistem</div>
+                    <div id="detectionStatus" class="status-value">Standby</div>
+                </div>
+                <div class="status-card">
+                    <div class="status-title">Kamera</div>
+                    <div id="cameraStatus" class="status-value">Mati</div>
+                </div>
             </div>
         </div>
 
+        <!-- Info Panel -->
         <div class="info-panel">
-            <h1 class="title">Hasil Deteksi</h1>
+            <!-- Title -->
+            <div class="title">Monitor Aktivitas Real-time</div>
             
-            <div class="gesture-card">
-                <div class="current-gesture">
-                    <span id="gestureEmoji" class="gesture-emoji">😐</span>
-                    <div id="gestureName" class="gesture-name">Mendeteksi...</div>
-                    <div id="confidenceText" class="confidence">Keyakinan: 0%</div>
-                    <div class="confidence-bar">
-                        <div id="confidenceFill" class="confidence-fill"></div>
+            <!-- Activity Section -->
+            <div class="activity-section">
+                <!-- Main Activity Display -->
+                <div class="gesture-card">
+                    <div class="current-gesture">
+                        <span id="gestureEmoji" class="gesture-emoji">🤖</span>
+                        <div id="gestureName" class="gesture-name">Memulai...</div>
+                        <div id="activityText" class="activity-level">Aktivitas: 0%</div>
+                        <div class="activity-bar">
+                            <div id="activityFill" class="activity-fill"></div>
+                        </div>
+                    </div>
+
+                    <!-- Sensor Grid -->
+                    <div class="sensor-grid">
+                        <div class="sensor-card">
+                            <div class="sensor-label">Pixel Change</div>
+                            <div id="pixelSensor" class="sensor-value value-low">0%</div>
+                        </div>
+                        <div class="sensor-card">
+                            <div class="sensor-label">Motion Power</div>
+                            <div id="motionSensor" class="sensor-value value-low">0%</div>
+                        </div>
+                        <div class="sensor-card">
+                            <div class="sensor-label">Active Area</div>
+                            <div id="areaSensor" class="sensor-value value-low">0%</div>
+                        </div>
+                        <div class="sensor-card">
+                            <div class="sensor-label">Frame Rate</div>
+                            <div id="fpsSensor" class="sensor-value value-medium">0 FPS</div>
+                        </div>
+                    </div>
+
+                    <!-- Detection Info -->
+                    <div class="detection-info">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <div class="info-label">Status Deteksi</div>
+                                <div id="motionStatus" class="info-value">Tidak Aktif</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Sensitivitas</div>
+                                <div id="sensitivity" class="info-value">Tinggi</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Mode</div>
+                                <div class="info-value">Real-time</div>
+                            </div>
+                            <div class="info-item">
+                                <div class="info-label">Algoritma</div>
+                                <div class="info-value">Pixel Diff</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Section -->
+            <div class="history">
+                <h3>📋 Log Aktivitas Terkini</h3>
+                <div id="historyList">
+                    <div style="text-align: center; opacity: 0.6; padding: 40px 20px;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">🎯</div>
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">Belum ada aktivitas terdeteksi</div>
+                        <div style="font-size: 0.9em; opacity: 0.7;">Gerakkan wajah di depan kamera untuk memulai!</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>Standby</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Kamera:</span>
+                        <span id="cameraStatus">Off</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Deteksi:</span>
+                        <span id="motionStatus">Tidak Aktif</span>
+                    </div>
+                    <div class="info-row">
+                        <span>Sensitivitas:</span>
+                        <span id="sensitivity">Tinggi</span>
                     </div>
                 </div>
             </div>
 
             <div class="history">
-                <h3>📋 Riwayat Gestur</h3>
+                <h3>📋 Log Aktivitas (20 terakhir)</h3>
                 <div id="historyList">
-                    <div style="text-align: center; opacity: 0.6; padding: 20px;">
-                        Belum ada gestur yang terdeteksi
+                    <div style="text-align: center; opacity: 0.6; padding: 30px;">
+                        <div>🎯</div>
+                        <div>Belum ada aktivitas terdeteksi</div>
+                        <div style="font-size: 0.8em; margin-top: 10px;">Gerakkan wajah di depan kamera!</div>
                     </div>
                 </div>
             </div>
@@ -345,73 +685,47 @@
 
     <script>
         // Global variables
-        let model = null;
         let video = null;
         let canvas = null;
         let ctx = null;
-        let isModelLoaded = false;
         let isCameraActive = false;
         let isDetectionActive = false;
         let animationId = null;
-        let gestureHistory = [];
+        let activityHistory = [];
         let lastFrameTime = 0;
         let fps = 0;
 
-        // Gesture definitions
-        const gestures = {
-            neutral: { name: 'Netral', emoji: '😐' },
-            happy: { name: 'Senang', emoji: '😊' },
-            sad: { name: 'Sedih', emoji: '😢' },
-            surprised: { name: 'Terkejut', emoji: '😲' },
-            angry: { name: 'Marah', emoji: '😠' },
-            disgusted: { name: 'Jijik', emoji: '🤢' },
-            fearful: { name: 'Takut', emoji: '😨' },
-            wink: { name: 'Kedip', emoji: '😉' }
+        // Motion detection variables
+        let previousFrameData = null;
+        let motionThreshold = 20;
+        let minMotionPixels = 100;
+
+        // Activity tracking
+        let currentActivity = {
+            level: 0,
+            type: 'idle',
+            name: 'Diam',
+            emoji: '😐',
+            pixelChange: 0,
+            motionIntensity: 0,
+            activeArea: 0
+        };
+
+        // Activity types
+        const activities = {
+            idle: { name: 'Diam', emoji: '😐', threshold: 0 },
+            slight: { name: 'Gerakan Kecil', emoji: '🙂', threshold: 15 },
+            moderate: { name: 'Gerakan Sedang', emoji: '😊', threshold: 35 },
+            active: { name: 'Aktif Bergerak', emoji: '😄', threshold: 55 },
+            very_active: { name: 'Sangat Aktif', emoji: '🤩', threshold: 75 }
         };
 
         // Start application
-        async function startApp() {
-            document.getElementById('startScreen').classList.add('hidden');
-            document.getElementById('loading').classList.remove('hidden');
-            
-            try {
-                await loadModel();
-                setupElements();
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                updateStatus('Model AI berhasil dimuat');
-            } catch (error) {
-                console.error('Error starting app:', error);
-                updateStatus('Error: ' + error.message);
-            }
-        }
-
-        // Start demo mode
-        function startDemo() {
+        function startApp() {
             document.getElementById('startScreen').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
-            updateStatus('Mode Demo - Tanpa kamera');
-        }
-
-        // Load TensorFlow model
-        async function loadModel() {
-            try {
-                await tf.ready();
-                model = await faceLandmarksDetection.load(
-                    faceLandmarksDetection.SupportedPackages.mediapipeFacemesh,
-                    {
-                        maxFaces: 1,
-                        refineLandmarks: true,
-                        minDetectionConfidence: 0.5,
-                        minTrackingConfidence: 0.5
-                    }
-                );
-                isModelLoaded = true;
-                console.log('Model loaded successfully');
-            } catch (error) {
-                console.error('Error loading model:', error);
-                throw new Error('Gagal memuat model AI');
-            }
+            setupElements();
+            updateStatus('Aplikasi siap - Nyalakan kamera untuk memulai deteksi');
         }
 
         // Setup DOM elements
@@ -422,6 +736,8 @@
             
             canvas.width = 640;
             canvas.height = 480;
+            
+            updateActivityDisplay(currentActivity);
         }
 
         // Toggle camera
@@ -451,13 +767,17 @@
                     isCameraActive = true;
                     isDetectionActive = true;
                     updateCameraControls();
-                    updateStatus('Kamera aktif - Mendeteksi gestur');
+                    updateStatus('Kamera aktif - Deteksi gerakan dimulai. Gerakkan wajah Anda!');
+                    document.getElementById('cameraStatus').textContent = 'Aktif';
+                    document.getElementById('detectionStatus').textContent = 'Mendeteksi';
+                    document.getElementById('motionStatus').textContent = 'Aktif';
                     startDetection();
                 };
                 
             } catch (error) {
                 console.error('Error accessing camera:', error);
-                updateStatus('Error: Tidak dapat mengakses kamera');
+                updateStatus('Error: Tidak dapat mengakses kamera - ' + error.message);
+                document.getElementById('cameraStatus').textContent = 'Error';
             }
         }
 
@@ -476,8 +796,17 @@
             
             isCameraActive = false;
             isDetectionActive = false;
+            previousFrameData = null;
             updateCameraControls();
             updateStatus('Kamera dimatikan');
+            document.getElementById('cameraStatus').textContent = 'Mati';
+            document.getElementById('detectionStatus').textContent = 'Stopped';
+            document.getElementById('motionStatus').textContent = 'Tidak Aktif';
+            
+            // Reset displays
+            updateSensorDisplay(0, 0, 0);
+            currentActivity = { level: 0, type: 'idle', name: 'Diam', emoji: '😐', pixelChange: 0, motionIntensity: 0, activeArea: 0 };
+            updateActivityDisplay(currentActivity);
             
             // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -491,13 +820,15 @@
             
             if (isDetectionActive) {
                 startDetection();
-                updateStatus('Deteksi aktif');
+                updateStatus('Deteksi aktif - Sistem mendeteksi gerakan wajah');
+                document.getElementById('motionStatus').textContent = 'Aktif';
             } else {
                 if (animationId) {
                     cancelAnimationFrame(animationId);
                     animationId = null;
                 }
-                updateStatus('Deteksi dijeda');
+                updateStatus('Deteksi dijeda - Gerakan tidak dimonitor');
+                document.getElementById('motionStatus').textContent = 'Dijeda';
             }
             
             updateCameraControls();
@@ -505,49 +836,48 @@
 
         // Start detection loop
         function startDetection() {
-            if (!isModelLoaded || !isCameraActive || !isDetectionActive) return;
+            if (!isCameraActive || !isDetectionActive) return;
             
-            const detect = async () => {
+            const detect = () => {
                 if (!isDetectionActive) return;
                 
                 try {
                     // Calculate FPS
                     const now = performance.now();
-                    fps = Math.round(1000 / (now - lastFrameTime));
+                    fps = Math.round(1000 / (now - lastFrameTime)) || 0;
                     lastFrameTime = now;
                     document.getElementById('fps').textContent = fps;
                     
-                    // Detect faces
-                    const predictions = await model.estimateFaces({
-                        input: video,
-                        returnTensors: false,
-                        flipHorizontal: false,
-                        predictIrises: false
-                    });
+                    // Capture current frame
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const currentFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                     
-                    // Clear canvas
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    
-                    if (predictions.length > 0) {
-                        const face = predictions[0];
-                        document.getElementById('faceCount').textContent = '1';
-                        document.getElementById('landmarkCount').textContent = face.keypoints.length;
+                    if (previousFrameData) {
+                        // Detect motion
+                        const motionData = detectMotion(currentFrameData, previousFrameData);
                         
-                        // Draw landmarks
-                        drawLandmarks(face.keypoints);
+                        // Update displays
+                        updateSensorDisplay(motionData.pixelChangePercent, motionData.motionIntensity, motionData.activeAreaPercent);
                         
-                        // Analyze gesture
-                        const gesture = analyzeGesture(face.keypoints);
-                        updateGestureDisplay(gesture);
+                        // Determine activity level
+                        const activity = determineActivity(motionData);
+                        updateActivityDisplay(activity);
                         
-                    } else {
-                        document.getElementById('faceCount').textContent = '0';
-                        document.getElementById('landmarkCount').textContent = '0';
-                        updateGestureDisplay({ type: 'neutral', confidence: 0 });
+                        // Add to history if significant activity
+                        if (activity.level > 10) {
+                            addToHistory(activity);
+                        }
+                        
+                        // Draw motion visualization
+                        drawMotionVisualization(motionData);
                     }
+                    
+                    // Store current frame for next comparison
+                    previousFrameData = currentFrameData;
                     
                 } catch (error) {
                     console.error('Detection error:', error);
+                    updateStatus('Error dalam deteksi: ' + error.message);
                 }
                 
                 if (isDetectionActive) {
@@ -558,237 +888,169 @@
             detect();
         }
 
-        // Draw face landmarks
-        function drawLandmarks(keypoints) {
-            ctx.fillStyle = '#ff6b6b';
-            ctx.strokeStyle = '#4ecdc4';
-            ctx.lineWidth = 1;
+        // Detect motion between frames
+        function detectMotion(currentFrame, previousFrame) {
+            const current = currentFrame.data;
+            const previous = previousFrame.data;
+            let changedPixels = 0;
+            let totalIntensity = 0;
+            let motionPixels = [];
             
-            // Draw all keypoints
-            keypoints.forEach((point, index) => {
-                ctx.beginPath();
-                ctx.arc(point.x, point.y, 1, 0, 2 * Math.PI);
-                ctx.fill();
+            for (let i = 0; i < current.length; i += 4) {
+                // Calculate pixel difference (grayscale)
+                const currentGray = (current[i] + current[i + 1] + current[i + 2]) / 3;
+                const previousGray = (previous[i] + previous[i + 1] + previous[i + 2]) / 3;
+                const diff = Math.abs(currentGray - previousGray);
+                
+                if (diff > motionThreshold) {
+                    changedPixels++;
+                    totalIntensity += diff;
+                    
+                    // Store motion pixel locations
+                    const pixelIndex = i / 4;
+                    const x = pixelIndex % canvas.width;
+                    const y = Math.floor(pixelIndex / canvas.width);
+                    motionPixels.push({ x, y, intensity: diff });
+                }
+            }
+            
+            const totalPixels = current.length / 4;
+            const pixelChangePercent = Math.round((changedPixels / totalPixels) * 100 * 10); // Amplified for sensitivity
+            const motionIntensity = changedPixels > 0 ? Math.round(totalIntensity / changedPixels) : 0;
+            const activeAreaPercent = Math.round((changedPixels / totalPixels) * 100 * 20); // Amplified
+            
+            return {
+                changedPixels,
+                pixelChangePercent: Math.min(100, pixelChangePercent),
+                motionIntensity: Math.min(100, motionIntensity),
+                activeAreaPercent: Math.min(100, activeAreaPercent),
+                motionPixels
+            };
+        }
+
+        // Determine activity level
+        function determineActivity(motionData) {
+            const avgActivity = (motionData.pixelChangePercent + motionData.motionIntensity + motionData.activeAreaPercent) / 3;
+            
+            let activityType = 'idle';
+            
+            if (avgActivity >= activities.very_active.threshold) {
+                activityType = 'very_active';
+            } else if (avgActivity >= activities.active.threshold) {
+                activityType = 'active';
+            } else if (avgActivity >= activities.moderate.threshold) {
+                activityType = 'moderate';
+            } else if (avgActivity >= activities.slight.threshold) {
+                activityType = 'slight';
+            }
+            
+            return {
+                level: Math.round(avgActivity),
+                type: activityType,
+                name: activities[activityType].name,
+                emoji: activities[activityType].emoji,
+                pixelChange: motionData.pixelChangePercent,
+                motionIntensity: motionData.motionIntensity,
+                activeArea: motionData.activeAreaPercent
+            };
+        }
+
+        // Draw motion visualization
+        function drawMotionVisualization(motionData) {
+            // Draw motion points
+            ctx.fillStyle = 'rgba(76, 205, 196, 0.6)';
+            
+            motionData.motionPixels.forEach(pixel => {
+                if (Math.random() < 0.1) { // Sample only some pixels for performance
+                    const size = Math.max(1, pixel.intensity / 20);
+                    ctx.fillRect(pixel.x, pixel.y, size, size);
+                }
             });
             
-            // Draw face outline
-            ctx.beginPath();
-            ctx.strokeStyle = '#4ecdc4';
-            ctx.lineWidth = 2;
+            // Draw activity level indicator
+            ctx.fillStyle = `rgba(76, 205, 196, 0.3)`;
+            ctx.fillRect(10, 10, motionData.pixelChangePercent * 3, 20);
             
-            // Simple face outline using key points
-            const faceOutline = [10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288, 397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136, 172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109];
+            ctx.fillStyle = 'white';
+            ctx.font = '14px Arial';
+            ctx.fillText(`Aktivitas: ${Math.round((motionData.pixelChangePercent + motionData.motionIntensity + motionData.activeAreaPercent) / 3)}%`, 15, 50);
+        }
+
+        // Update sensor display
+        function updateSensorDisplay(pixelChange, motionIntensity, activeArea) {
+            // Update main sensor display
+            document.getElementById('pixelChange').textContent = pixelChange + '%';
+            document.getElementById('motionIntensity').textContent = motionIntensity + '%';
+            document.getElementById('activeArea').textContent = activeArea + '%';
             
-            faceOutline.forEach((index, i) => {
-                if (keypoints[index]) {
-                    if (i === 0) {
-                        ctx.moveTo(keypoints[index].x, keypoints[index].y);
-                    } else {
-                        ctx.lineTo(keypoints[index].x, keypoints[index].y);
+            // Update sensor grid cards
+            document.getElementById('pixelSensor').textContent = pixelChange + '%';
+            document.getElementById('motionSensor').textContent = motionIntensity + '%';
+            document.getElementById('areaSensor').textContent = activeArea + '%';
+            document.getElementById('fpsSensor').textContent = fps + ' FPS';
+            
+            const avgActivity = (pixelChange + motionIntensity + activeArea) / 3;
+            let globalStatus = 'Diam';
+            
+            if (avgActivity > 75) globalStatus = 'Sangat Aktif';
+            else if (avgActivity > 50) globalStatus = 'Aktif';
+            else if (avgActivity > 25) globalStatus = 'Bergerak';
+            else if (avgActivity > 10) globalStatus = 'Sedikit Gerakan';
+            
+            document.getElementById('globalActivity').textContent = globalStatus;
+            
+            // Update colors based on activity level
+            const updateColor = (elementIds, value) => {
+                const colorClass = value > 50 ? 'value-high' : value > 20 ? 'value-medium' : 'value-low';
+                elementIds.forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.className = `sensor-value ${colorClass}`;
                     }
+                });
+            };
+            
+            updateColor(['pixelChange', 'pixelSensor'], pixelChange);
+            updateColor(['motionIntensity', 'motionSensor'], motionIntensity);
+            updateColor(['activeArea', 'areaSensor'], activeArea);
+            
+            // Update FPS color
+            const fpsElements = ['fps', 'fpsSensor'];
+            fpsElements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.className = fps > 25 ? 'value-high' : fps > 15 ? 'value-medium' : 'value-low';
                 }
             });
-            ctx.stroke();
         }
 
-        // Analyze gesture from keypoints
-        function analyzeGesture(keypoints) {
-            if (!keypoints || keypoints.length < 468) {
-                return { type: 'neutral', confidence: 0 };
-            }
+        // Update activity display
+        function updateActivityDisplay(activity) {
+            document.getElementById('gestureEmoji').textContent = activity.emoji;
+            document.getElementById('gestureName').textContent = activity.name;
+            document.getElementById('activityText').textContent = `Aktivitas: ${activity.level}%`;
+            document.getElementById('activityFill').style.width = activity.level + '%';
             
-            try {
-                // Key landmarks dengan lebih banyak titik referensi
-                const leftEyeOuter = keypoints[33];
-                const rightEyeOuter = keypoints[263];
-                const leftEyeInner = keypoints[133];
-                const rightEyeInner = keypoints[362];
-                const leftEyeTop = keypoints[159];
-                const leftEyeBottom = keypoints[145];
-                const rightEyeTop = keypoints[386];
-                const rightEyeBottom = keypoints[374];
+            currentActivity = activity;
+        }
+
+        // Add to history
+        function addToHistory(activity) {
+            const now = Date.now();
+            const lastActivity = activityHistory[activityHistory.length - 1];
+            
+            if (!lastActivity || 
+                lastActivity.type !== activity.type ||
+                (now - lastActivity.timestamp) > 1000) {
                 
-                const leftMouthCorner = keypoints[61];
-                const rightMouthCorner = keypoints[291];
-                const topMouthCenter = keypoints[13];
-                const bottomMouthCenter = keypoints[14];
-                const upperLipTop = keypoints[12];
-                const lowerLipBottom = keypoints[15];
-                const noseTip = keypoints[1];
-                const noseBase = keypoints[2];
-                
-                const leftEyebrow = keypoints[46];
-                const rightEyebrow = keypoints[276];
-                const centerForehead = keypoints[9];
-                const chin = keypoints[175];
-                
-                console.log('Analyzing gesture...');
-                
-                // Normalisasi berdasarkan ukuran wajah
-                const faceWidth = Math.abs(leftEyeOuter.x - rightEyeOuter.x);
-                const faceHeight = Math.abs(centerForehead.y - chin.y);
-                
-                // Pengukuran mata
-                const leftEyeHeight = Math.abs(leftEyeTop.y - leftEyeBottom.y);
-                const rightEyeHeight = Math.abs(rightEyeTop.y - rightEyeBottom.y);
-                const eyeHeightDiff = Math.abs(leftEyeHeight - rightEyeHeight);
-                const avgEyeHeight = (leftEyeHeight + rightEyeHeight) / 2;
-                
-                // Pengukuran mulut yang lebih detail
-                const mouthWidth = Math.abs(leftMouthCorner.x - rightMouthCorner.x);
-                const mouthHeightCenter = Math.abs(topMouthCenter.y - bottomMouthCenter.y);
-                const mouthHeightFull = Math.abs(upperLipTop.y - lowerLipBottom.y);
-                const mouthCenterY = (leftMouthCorner.y + rightMouthCorner.y) / 2;
-                
-                // Pengukuran alis
-                const leftEyebrowHeight = Math.abs(leftEyebrow.y - leftEyeTop.y);
-                const rightEyebrowHeight = Math.abs(rightEyebrow.y - rightEyeTop.y);
-                const avgEyebrowHeight = (leftEyebrowHeight + rightEyebrowHeight) / 2;
-                
-                // Normalisasi
-                const normalizedMouthWidth = mouthWidth / faceWidth;
-                const normalizedMouthHeight = mouthHeightCenter / faceHeight;
-                const normalizedMouthHeightFull = mouthHeightFull / faceHeight;
-                const normalizedEyeHeight = avgEyeHeight / faceHeight;
-                const normalizedEyebrowHeight = avgEyebrowHeight / faceHeight;
-                
-                // Posisi relatif mulut terhadap hidung
-                const mouthToNoseDistance = (mouthCenterY - noseTip.y) / faceHeight;
-                const mouthOpenRatio = normalizedMouthHeight / normalizedMouthWidth;
-                
-                console.log('Measurements:', {
-                    normalizedMouthWidth: normalizedMouthWidth.toFixed(3),
-                    normalizedMouthHeight: normalizedMouthHeight.toFixed(3),
-                    mouthToNoseDistance: mouthToNoseDistance.toFixed(3),
-                    mouthOpenRatio: mouthOpenRatio.toFixed(3),
-                    normalizedEyebrowHeight: normalizedEyebrowHeight.toFixed(3),
-                    eyeHeightDiff: eyeHeightDiff.toFixed(3)
+                activityHistory.push({
+                    ...activity,
+                    timestamp: now,
+                    timeString: new Date().toLocaleTimeString()
                 });
                 
-                let detectedGesture = { type: 'neutral', confidence: 50 };
-                let maxConfidence = 0;
-                
-                // 1. SENYUM detection - threshold lebih rendah
-                if (mouthToNoseDistance < -0.005 || normalizedMouthWidth > 0.06) {
-                    const smileIntensity = Math.max(
-                        Math.abs(mouthToNoseDistance) * 1000,
-                        (normalizedMouthWidth - 0.05) * 1000
-                    );
-                    const confidence = Math.min(95, 60 + smileIntensity * 3);
-                    
-                    if (confidence > maxConfidence) {
-                        maxConfidence = confidence;
-                        detectedGesture = { type: 'happy', confidence };
-                        console.log('SMILE detected:', confidence);
-                    }
-                }
-                
-                // 2. TERKEJUT detection
-                if (normalizedMouthHeight > 0.008 || mouthOpenRatio > 0.15) {
-                    const surpriseIntensity = Math.max(
-                        normalizedMouthHeight * 1000,
-                        mouthOpenRatio * 100
-                    );
-                    const confidence = Math.min(95, 50 + surpriseIntensity * 2);
-                    
-                    if (confidence > maxConfidence) {
-                        maxConfidence = confidence;
-                        detectedGesture = { type: 'surprised', confidence };
-                        console.log('SURPRISED detected:', confidence);
-                    }
-                }
-                
-                // 3. SEDIH detection
-                if (mouthToNoseDistance > 0.002 || normalizedMouthWidth < 0.04) {
-                    const sadIntensity = Math.max(
-                        mouthToNoseDistance * 1000,
-                        (0.05 - normalizedMouthWidth) * 1000
-                    );
-                    const confidence = Math.min(90, 50 + sadIntensity * 3);
-                    
-                    if (confidence > maxConfidence) {
-                        maxConfidence = confidence;
-                        detectedGesture = { type: 'sad', confidence };
-                        console.log('SAD detected:', confidence);
-                    }
-                }
-                
-                // 4. MARAH detection - alis turun
-                if (normalizedEyebrowHeight < 0.015) {
-                    const angerIntensity = (0.02 - normalizedEyebrowHeight) * 1000;
-                    const confidence = Math.min(85, 50 + angerIntensity * 2);
-                    
-                    if (confidence > maxConfidence) {
-                        maxConfidence = confidence;
-                        detectedGesture = { type: 'angry', confidence };
-                        console.log('ANGRY detected:', confidence);
-                    }
-                }
-                
-                // 5. KEDIP detection
-                if (eyeHeightDiff > 0.003) {
-                    const winkIntensity = eyeHeightDiff * 1000;
-                    const confidence = Math.min(90, 50 + winkIntensity * 5);
-                    
-                    if (confidence > maxConfidence) {
-                        maxConfidence = confidence;
-                        detectedGesture = { type: 'wink', confidence };
-                        console.log('WINK detected:', confidence);
-                    }
-                }
-                
-                // 6. TAKUT detection - mata besar + alis naik
-                if (normalizedEyeHeight > 0.02 && normalizedEyebrowHeight > 0.025) {
-                    const fearIntensity = normalizedEyeHeight * 1000 + normalizedEyebrowHeight * 1000;
-                    const confidence = Math.min(85, 40 + fearIntensity);
-                    
-                    if (confidence > maxConfidence) {
-                        maxConfidence = confidence;
-                        detectedGesture = { type: 'fearful', confidence };
-                        console.log('FEARFUL detected:', confidence);
-                    }
-                }
-                
-                console.log('Final gesture:', detectedGesture);
-                return detectedGesture;
-                
-            } catch (error) {
-                console.error('Gesture analysis error:', error);
-                return { type: 'neutral', confidence: 0 };
-            }
-        }
-
-        // Update gesture display
-        function updateGestureDisplay(gesture) {
-            const gestureData = gestures[gesture.type] || gestures.neutral;
-            const confidence = Math.round(gesture.confidence);
-            
-            document.getElementById('gestureEmoji').textContent = gestureData.emoji;
-            document.getElementById('gestureName').textContent = gestureData.name;
-            document.getElementById('confidenceText').textContent = `Keyakinan: ${confidence}%`;
-            document.getElementById('confidenceFill').style.width = confidence + '%';
-            
-            // Add to history if confidence is high
-            if (confidence > 70 && gesture.type !== 'neutral') {
-                addToHistory({
-                    type: gesture.type,
-                    name: gestureData.name,
-                    emoji: gestureData.emoji,
-                    confidence: confidence,
-                    timestamp: new Date().toLocaleTimeString()
-                });
-            }
-        }
-
-        // Add gesture to history
-        function addToHistory(gestureData) {
-            const lastGesture = gestureHistory[gestureHistory.length - 1];
-            
-            if (!lastGesture || lastGesture.type !== gestureData.type) {
-                gestureHistory.push(gestureData);
-                
-                if (gestureHistory.length > 10) {
-                    gestureHistory.shift();
+                if (activityHistory.length > 20) {
+                    activityHistory.shift();
                 }
                 
                 updateHistoryDisplay();
@@ -799,20 +1061,33 @@
         function updateHistoryDisplay() {
             const historyList = document.getElementById('historyList');
             
-            if (gestureHistory.length === 0) {
-                historyList.innerHTML = '<div style="text-align: center; opacity: 0.6; padding: 20px;">Belum ada gestur yang terdeteksi</div>';
+            if (activityHistory.length === 0) {
+                historyList.innerHTML = `
+                    <div style="text-align: center; opacity: 0.6; padding: 40px 20px;">
+                        <div style="font-size: 3em; margin-bottom: 15px;">🎯</div>
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">Belum ada aktivitas terdeteksi</div>
+                        <div style="font-size: 0.9em; opacity: 0.7;">Gerakkan wajah di depan kamera untuk memulai!</div>
+                    </div>
+                `;
                 return;
             }
             
-            historyList.innerHTML = gestureHistory.slice().reverse().map(item => `
-                <div class="history-item">
-                    <span>${item.emoji} ${item.name}</span>
-                    <div style="text-align: right;">
-                        <div>${item.confidence}%</div>
-                        <div style="font-size: 0.8em; opacity: 0.7;">${item.timestamp}</div>
+            historyList.innerHTML = activityHistory.slice().reverse().map((item, index) => {
+                const intensityColor = item.level > 75 ? '#4ecdc4' : item.level > 50 ? '#ffa500' : item.level > 25 ? '#ffff00' : '#ff6b6b';
+                return `
+                    <div class="history-item" style="animation-delay: ${index * 0.1}s;">
+                        <div class="history-emoji">${item.emoji}</div>
+                        <div class="history-content">
+                            <div class="history-name">${item.name}</div>
+                            <div class="history-time">${item.timeString}</div>
+                        </div>
+                        <div class="history-stats">
+                            <div class="history-level" style="color: ${intensityColor};">${item.level}%</div>
+                            <div class="history-percentage">Level</div>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
         }
 
         // Update camera controls
@@ -843,29 +1118,360 @@
 
         // Update status
         function updateStatus(message) {
-            document.getElementById('status').textContent = message;
+            // Update detection status in the status card
+            const detectionStatusElement = document.getElementById('detectionStatus');
+            if (detectionStatusElement) {
+                if (message.includes('aktif') || message.includes('Mendeteksi')) {
+                    detectionStatusElement.textContent = 'Aktif';
+                    detectionStatusElement.style.color = '#4ecdc4';
+                } else if (message.includes('dijeda') || message.includes('Pause')) {
+                    detectionStatusElement.textContent = 'Dijeda';
+                    detectionStatusElement.style.color = '#ffa500';
+                } else if (message.includes('Error') || message.includes('error')) {
+                    detectionStatusElement.textContent = 'Error';
+                    detectionStatusElement.style.color = '#ff6b6b';
+                } else {
+                    detectionStatusElement.textContent = 'Standby';
+                    detectionStatusElement.style.color = '#ffffff';
+                }
+            }
+            
+            // Log message to console for debugging
+            console.log('Status:', message);
         }
 
         // Go back to home
         function goHome() {
             stopCamera();
-            gestureHistory = [];
+            activityHistory = [];
             updateHistoryDisplay();
+            currentActivity = { level: 0, type: 'idle', name: 'Diam', emoji: '😐', pixelChange: 0, motionIntensity: 0, activeArea: 0 };
+            updateActivityDisplay(currentActivity);
             document.getElementById('mainApp').classList.add('hidden');
             document.getElementById('startScreen').classList.remove('hidden');
         }
 
-        // Show debug info (for development)
-        function toggleDebug() {
-            const debugInfo = document.getElementById('debugInfo');
-            debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+        // Adjust sensitivity
+        function adjustSensitivity(level) {
+            switch(level) {
+                case 'low':
+                    motionThreshold = 35;
+                    minMotionPixels = 200;
+                    document.getElementById('sensitivity').textContent = 'Rendah';
+                    break;
+                case 'medium':
+                    motionThreshold = 25;
+                    minMotionPixels = 150;
+                    document.getElementById('sensitivity').textContent = 'Sedang';
+                    break;
+                case 'high':
+                default:
+                    motionThreshold = 15;
+                    minMotionPixels = 100;
+                    document.getElementById('sensitivity').textContent = 'Tinggi';
+                    break;
+            }
+            updateStatus(`Sensitivitas diatur ke: ${document.getElementById('sensitivity').textContent}`);
         }
 
-        // Initialize app
-        window.addEventListener('load', () => {
-            console.log('Face Gesture Reader v2.0 loaded');
-            // App starts from start screen
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            switch(e.key.toLowerCase()) {
+                case 'c':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        toggleCamera();
+                    }
+                    break;
+                case 'p':
+                    if (!e.ctrlKey && !e.metaKey) {
+                        toggleDetection();
+                    }
+                    break;
+                case 'h':
+                    goHome();
+                    break;
+                case '1':
+                    adjustSensitivity('low');
+                    break;
+                case '2':
+                    adjustSensitivity('medium');
+                    break;
+                case '3':
+                    adjustSensitivity('high');
+                    break;
+                case 'escape':
+                    if (isCameraActive) {
+                        stopCamera();
+                    } else {
+                        goHome();
+                    }
+                    break;
+            }
         });
+
+        // Handle visibility change (pause when tab is hidden)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && isDetectionActive) {
+                // Pause detection when tab is not visible to save resources
+                toggleDetection();
+                updateStatus('Deteksi dijeda - Tab tidak aktif');
+            }
+        });
+
+        // Handle errors
+        window.addEventListener('error', (e) => {
+            console.error('Error:', e.error);
+            updateStatus('Error: ' + e.error.message);
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Promise error:', e.reason);
+            updateStatus('Promise Error: ' + e.reason);
+        });
+
+        // Performance monitoring
+        let performanceMonitor = {
+            frameCount: 0,
+            startTime: performance.now(),
+            lastCheck: performance.now(),
+            
+            update() {
+                this.frameCount++;
+                const now = performance.now();
+                
+                if (now - this.lastCheck > 3000) { // Check every 3 seconds
+                    const avgFps = this.frameCount / ((now - this.lastCheck) / 1000);
+                    
+                    if (avgFps < 15) {
+                        console.warn('Low FPS detected:', avgFps);
+                        if (motionThreshold < 30) {
+                            motionThreshold += 5; // Reduce sensitivity if performance is poor
+                            updateStatus('Performa rendah - Sensitivitas dikurangi');
+                        }
+                    }
+                    
+                    this.frameCount = 0;
+                    this.lastCheck = now;
+                }
+            }
+        };
+
+        // Auto-adjust detection based on activity
+        let adaptiveDetection = {
+            consecutiveLowActivity: 0,
+            consecutiveHighActivity: 0,
+            
+            adjust(activityLevel) {
+                if (activityLevel < 5) {
+                    this.consecutiveLowActivity++;
+                    this.consecutiveHighActivity = 0;
+                    
+                    // Increase sensitivity if consistently low activity
+                    if (this.consecutiveLowActivity > 10 && motionThreshold > 10) {
+                        motionThreshold -= 2;
+                        this.consecutiveLowActivity = 0;
+                        console.log('Increasing sensitivity due to low activity');
+                    }
+                } else if (activityLevel > 80) {
+                    this.consecutiveHighActivity++;
+                    this.consecutiveLowActivity = 0;
+                    
+                    // Decrease sensitivity if consistently high activity (noise)
+                    if (this.consecutiveHighActivity > 8 && motionThreshold < 40) {
+                        motionThreshold += 3;
+                        this.consecutiveHighActivity = 0;
+                        console.log('Decreasing sensitivity due to high activity');
+                    }
+                } else {
+                    this.consecutiveLowActivity = 0;
+                    this.consecutiveHighActivity = 0;
+                }
+            }
+        };
+
+        // Enhanced motion detection with smoothing
+        let motionSmoother = {
+            history: [],
+            maxHistory: 5,
+            
+            smooth(value) {
+                this.history.push(value);
+                if (this.history.length > this.maxHistory) {
+                    this.history.shift();
+                }
+                
+                // Calculate weighted average (recent values have more weight)
+                let weightedSum = 0;
+                let totalWeight = 0;
+                
+                this.history.forEach((val, index) => {
+                    const weight = index + 1; // More recent = higher weight
+                    weightedSum += val * weight;
+                    totalWeight += weight;
+                });
+                
+                return Math.round(weightedSum / totalWeight);
+            }
+        };
+
+        // Initialize motion smoothers for each metric
+        let pixelChangeSmoother = Object.create(motionSmoother);
+        let motionIntensitySmoother = Object.create(motionSmoother);
+        let activeAreaSmoother = Object.create(motionSmoother);
+
+        // Enhanced detection loop with performance monitoring and adaptive features
+        function enhancedDetection() {
+            if (!isCameraActive || !isDetectionActive) return;
+            
+            const detect = () => {
+                if (!isDetectionActive) return;
+                
+                try {
+                    performanceMonitor.update();
+                    
+                    // Calculate FPS
+                    const now = performance.now();
+                    fps = Math.round(1000 / (now - lastFrameTime)) || 0;
+                    lastFrameTime = now;
+                    document.getElementById('fps').textContent = fps;
+                    
+                    // Capture current frame
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const currentFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    if (previousFrameData) {
+                        // Detect motion
+                        const rawMotionData = detectMotion(currentFrameData, previousFrameData);
+                        
+                        // Smooth the motion data
+                        const smoothedMotionData = {
+                            pixelChangePercent: pixelChangeSmoother.smooth(rawMotionData.pixelChangePercent),
+                            motionIntensity: motionIntensitySmoother.smooth(rawMotionData.motionIntensity),
+                            activeAreaPercent: activeAreaSmoother.smooth(rawMotionData.activeAreaPercent),
+                            motionPixels: rawMotionData.motionPixels
+                        };
+                        
+                        // Update displays with smoothed data
+                        updateSensorDisplay(smoothedMotionData.pixelChangePercent, smoothedMotionData.motionIntensity, smoothedMotionData.activeAreaPercent);
+                        
+                        // Determine activity level
+                        const activity = determineActivity(smoothedMotionData);
+                        updateActivityDisplay(activity);
+                        
+                        // Adaptive detection adjustment
+                        adaptiveDetection.adjust(activity.level);
+                        
+                        // Add to history if significant activity
+                        if (activity.level > 15) {
+                            addToHistory(activity);
+                        }
+                        
+                        // Draw motion visualization
+                        drawEnhancedVisualization(smoothedMotionData, activity);
+                    }
+                    
+                    // Store current frame for next comparison
+                    previousFrameData = currentFrameData;
+                    
+                } catch (error) {
+                    console.error('Detection error:', error);
+                    updateStatus('Error dalam deteksi: ' + error.message);
+                }
+                
+                if (isDetectionActive) {
+                    animationId = requestAnimationFrame(detect);
+                }
+            };
+            
+            detect();
+        }
+
+        // Enhanced visualization with better graphics
+        function drawEnhancedVisualization(motionData, activity) {
+            // Clear previous drawings
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw motion heatmap
+            ctx.fillStyle = 'rgba(76, 205, 196, 0.4)';
+            motionData.motionPixels.forEach((pixel, index) => {
+                if (index % 5 === 0) { // Sample every 5th pixel for performance
+                    const size = Math.max(1, pixel.intensity / 15);
+                    const alpha = Math.min(1, pixel.intensity / 100);
+                    ctx.fillStyle = `rgba(76, 205, 196, ${alpha})`;
+                    ctx.fillRect(pixel.x - size/2, pixel.y - size/2, size, size);
+                }
+            });
+            
+            // Draw activity bars
+            const barWidth = 200;
+            const barHeight = 15;
+            const barY = canvas.height - 80;
+            
+            // Background bars
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.fillRect(20, barY, barWidth, barHeight);
+            ctx.fillRect(20, barY + 25, barWidth, barHeight);
+            ctx.fillRect(20, barY + 50, barWidth, barHeight);
+            
+            // Activity bars
+            ctx.fillStyle = '#4ecdc4';
+            ctx.fillRect(20, barY, (motionData.pixelChangePercent / 100) * barWidth, barHeight);
+            ctx.fillStyle = '#ffa500';
+            ctx.fillRect(20, barY + 25, (motionData.motionIntensity / 100) * barWidth, barHeight);
+            ctx.fillStyle = '#ff6b6b';
+            ctx.fillRect(20, barY + 50, (motionData.activeAreaPercent / 100) * barWidth, barHeight);
+            
+            // Labels
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            ctx.fillText(`Pixel: ${motionData.pixelChangePercent}%`, 230, barY + 12);
+            ctx.fillText(`Motion: ${motionData.motionIntensity}%`, 230, barY + 37);
+            ctx.fillText(`Area: ${motionData.activeAreaPercent}%`, 230, barY + 62);
+            
+            // Overall activity indicator
+            ctx.fillStyle = activity.level > 75 ? '#4ecdc4' : activity.level > 50 ? '#ffa500' : activity.level > 25 ? '#ffff00' : '#ff6b6b';
+            ctx.font = 'bold 16px Arial';
+            ctx.fillText(`${activity.emoji} ${activity.name} (${activity.level}%)`, 20, 30);
+            
+            // Detection status
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(canvas.width - 150, 10, 140, 60);
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.fillText('Status: Aktif', canvas.width - 145, 25);
+            ctx.fillText(`FPS: ${fps}`, canvas.width - 145, 40);
+            ctx.fillText(`Threshold: ${motionThreshold}`, canvas.width - 145, 55);
+        }
+
+        // Replace the original startDetection with enhanced version
+        function startDetection() {
+            enhancedDetection();
+        }
+
+        // Initialize everything when page loads
+        window.addEventListener('load', () => {
+            console.log('Face Gesture Reader v4.0 - Motion Detection Edition');
+            console.log('Keyboard shortcuts:');
+            console.log('- C: Toggle Camera');
+            console.log('- P: Pause/Resume Detection');
+            console.log('- H: Go Home');
+            console.log('- 1/2/3: Adjust Sensitivity (Low/Medium/High)');
+            console.log('- Esc: Stop/Exit');
+            
+            // Show start screen
+            document.getElementById('startScreen').classList.remove('hidden');
+            
+            // Set initial sensitivity
+            adjustSensitivity('high');
+        });
+
+        // Cleanup when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (isCameraActive) {
+                stopCamera();
+            }
+        });
+
     </script>
 </body>
-</html>
+    </html>
