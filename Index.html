@@ -3,1475 +3,711 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pembaca Gestur Wajah - Deteksi Gerakan</title>
+    <title>Deteksi Multi-Wajah Ekspresi</title>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
             font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
             min-height: 100vh;
-            overflow-x: hidden;
-        }
-
-        .container {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
-            grid-template-rows: auto 1fr;
-            height: 100vh;
-            gap: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             padding: 20px;
         }
-
-        .header {
-            grid-column: 1 / -1;
-            text-align: center;
-            padding: 20px 0;
-            background: rgba(0,0,0,0.2);
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 0;
+        
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            width: 100%;
+            max-width: 1400px;
         }
-
-        .header h1 {
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
             font-size: 2.5em;
-            margin-bottom: 10px;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            background: linear-gradient(45deg, #667eea, #764ba2);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
-
-        .header p {
-            opacity: 0.8;
-            font-size: 1.1em;
-        }
-
-        .video-section {
-            display: grid;
-            grid-template-rows: auto 1fr auto;
-            gap: 20px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 20px;
-            padding: 25px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .video-controls {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            justify-items: center;
-        }
-
-        .video-container {
-            position: relative;
+        
+        .camera-container {
             display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.3);
-            border-radius: 15px;
-            padding: 20px;
-            min-height: 400px;
+            gap: 30px;
+            align-items: flex-start;
+            flex-wrap: wrap;
         }
-
+        
+        .video-section {
+            flex: 1;
+            min-width: 500px;
+            position: relative;
+        }
+        
+        .video-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+        
         #video {
             width: 100%;
             max-width: 640px;
             height: auto;
-            border-radius: 12px;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            transform: scaleX(-1);
-            background: #333;
-            object-fit: cover;
-        }
-
-        #canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) scaleX(-1);
-            border-radius: 12px;
-            pointer-events: none;
-            border: 2px solid #4ecdc4;
-            box-shadow: 0 0 20px rgba(76, 205, 196, 0.3);
-        }
-
-        .video-status {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            text-align: center;
-        }
-
-        .status-card {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 12px;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .status-title {
-            font-size: 0.9em;
-            opacity: 0.8;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .status-value {
-            font-size: 1.2em;
-            font-weight: bold;
-            color: #4ecdc4;
-        }
-
-        .btn {
-            padding: 14px 24px;
-            border: none;
-            border-radius: 25px;
-            background: rgba(255,255,255,0.15);
-            color: white;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-            border: 2px solid transparent;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .btn:hover {
-            background: rgba(255,255,255,0.25);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        }
-
-        .btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .btn.active {
-            background: rgba(76, 205, 196, 0.3);
-            border-color: #4ecdc4;
-            box-shadow: 0 0 20px rgba(76, 205, 196, 0.3);
-        }
-
-        .btn.danger {
-            background: rgba(255, 107, 107, 0.3);
-            border-color: #ff6b6b;
-        }
-
-        .btn.danger:hover {
-            background: rgba(255, 107, 107, 0.4);
-            box-shadow: 0 0 20px rgba(255, 107, 107, 0.3);
-        }
-
-        .info-panel {
-            display: grid;
-            grid-template-rows: auto auto 1fr;
-            gap: 25px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 20px;
-            padding: 25px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            overflow: hidden;
-        }
-
-        .title {
-            font-size: 2.5em;
-            margin-bottom: 30px;
-            text-align: center;
-            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .gesture-card {
-            background: rgba(255,255,255,0.1);
             border-radius: 15px;
-            padding: 25px;
-            margin: 20px 0;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
-
-        .current-gesture {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .gesture-emoji {
-            font-size: 4em;
-            display: block;
-            margin-bottom: 10px;
-            animation: bounce 2s infinite;
-        }
-
-        @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-10px); }
-            60% { transform: translateY(-5px); }
-        }
-
-        .gesture-name {
-            font-size: 1.8em;
-            margin-bottom: 10px;
-            font-weight: bold;
-        }
-
-        .activity-level {
-            font-size: 1.2em;
-            margin-bottom: 15px;
-        }
-
-        .activity-bar {
-            width: 100%;
-            height: 25px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .activity-fill {
-            height: 100%;
-            background: linear-gradient(90deg, #ff6b6b 0%, #ffa500 50%, #4ecdc4 100%);
-            border-radius: 12px;
-            transition: width 0.3s ease;
-            width: 0%;
-        }
-
-        .detection-info {
-            margin-top: 20px;
-            padding: 15px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-        }
-
-        .info-row {
-            display: flex;
-            justify-content: space-between;
-            margin: 8px 0;
-            font-size: 14px;
-        }
-
-        .history {
-            margin-top: 30px;
-        }
-
-        .history h3 {
-            margin-bottom: 15px;
-            font-size: 1.3em;
-            color: #4ecdc4;
-        }
-
-        .history-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            margin: 10px 0;
-            background: rgba(255,255,255,0.05);
-            border-radius: 10px;
-            border-left: 4px solid #4ecdc4;
-            animation: slideIn 0.5s ease;
-        }
-
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-
-        .start-screen {
-            position: fixed;
+        
+        .video-overlay {
+            position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
+            height: 100%;
+            pointer-events: none;
+            border-radius: 15px;
+            overflow: hidden;
         }
-
-        .start-screen h1 {
-            font-size: 3.5em;
-            margin-bottom: 20px;
-            text-align: center;
-        }
-
-        .start-screen p {
-            font-size: 1.3em;
-            margin-bottom: 30px;
-            text-align: center;
-            max-width: 600px;
-            line-height: 1.8;
-        }
-
-        .start-btn {
-            padding: 20px 40px;
-            font-size: 1.3em;
-            border: none;
-            border-radius: 50px;
-            background: linear-gradient(45deg, #4ecdc4, #45b7d1);
-            color: white;
-            cursor: pointer;
-            margin: 10px;
-            transition: all 0.3s ease;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
-        }
-
-        .start-btn:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 35px rgba(0,0,0,0.3);
-        }
-
-        .hidden {
-            display: none !important;
-        }
-
-        .sensor-display {
+        
+        .face-indicator {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0,0,0,0.8);
+            transform: translate(-50%, -100%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 8px 16px;
+            border-radius: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+            z-index: 10;
+            border: 3px solid;
+            animation: pulse 2s infinite;
+        }
+        
+        .face-indicator::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 12px solid;
+            border-top-color: inherit;
+        }
+        
+        .face-indicator.happy { border-color: #4CAF50; }
+        .face-indicator.happy::after { border-top-color: #4CAF50; }
+        
+        .face-indicator.sad { border-color: #2196F3; }
+        .face-indicator.sad::after { border-top-color: #2196F3; }
+        
+        .face-indicator.angry { border-color: #F44336; }
+        .face-indicator.angry::after { border-top-color: #F44336; }
+        
+        .face-indicator.surprised { border-color: #FF9800; }
+        .face-indicator.surprised::after { border-top-color: #FF9800; }
+        
+        .face-indicator.neutral { border-color: #9E9E9E; }
+        .face-indicator.neutral::after { border-top-color: #9E9E9E; }
+        
+        .face-indicator.fear { border-color: #9C27B0; }
+        .face-indicator.fear::after { border-top-color: #9C27B0; }
+        
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -100%) scale(1); }
+            50% { transform: translate(-50%, -100%) scale(1.05); }
+        }
+        
+        .face-box {
+            position: absolute;
+            border: 3px solid;
+            border-radius: 8px;
+            pointer-events: none;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .camera-switch {
+            background: linear-gradient(45deg, #FF6B6B, #FF8E53);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        .camera-switch:hover {
+            box-shadow: 0 8px 25px rgba(255, 107, 107, 0.6);
+        }
+        
+        .results-section {
+            flex: 1;
+            min-width: 400px;
+        }
+        
+        .detected-faces {
+            background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .detected-faces h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 1.5em;
+        }
+        
+        .face-list {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .face-item {
+            background: rgba(255, 255, 255, 0.8);
             padding: 15px;
             border-radius: 10px;
-            font-family: monospace;
-            font-size: 12px;
-            min-width: 200px;
-            border: 1px solid #4ecdc4;
+            border-left: 5px solid;
         }
-
-        .sensor-value {
+        
+        .face-item.happy { border-color: #4CAF50; }
+        .face-item.sad { border-color: #2196F3; }
+        .face-item.angry { border-color: #F44336; }
+        .face-item.surprised { border-color: #FF9800; }
+        .face-item.neutral { border-color: #9E9E9E; }
+        .face-item.fear { border-color: #9C27B0; }
+        
+        .face-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .face-expression {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+        
+        .face-confidence {
+            color: #666;
+            font-size: 0.9em;
+        }
+        
+        .expressions-list {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .expressions-list h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .expression-item {
             display: flex;
             justify-content: space-between;
-            margin: 5px 0;
-            padding: 3px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
         }
-
-        .sensor-value:last-child {
+        
+        .expression-item:last-child {
             border-bottom: none;
         }
-
-        .value-high {
-            color: #4ecdc4;
-            font-weight: bold;
+        
+        .expression-bar {
+            width: 60%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
         }
-
-        .value-medium {
-            color: #ffa500;
+        
+        .expression-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 4px;
+            transition: width 0.3s ease;
         }
-
-        .value-low {
-            color: #ff6b6b;
+        
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: 600;
         }
-
-        @media (max-width: 1200px) {
-            .container {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto auto 1fr;
-            }
-            
-            .video-section {
-                grid-row: 2;
-            }
-            
-            .info-panel {
-                grid-row: 3;
-                max-height: 60vh;
-            }
+        
+        .status.loading {
+            background: #fff3cd;
+            color: #856404;
         }
-
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-                gap: 15px;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .header p {
-                font-size: 1em;
-            }
-            
-            .video-controls {
-                grid-template-columns: repeat(2, 1fr);
-            }
-            
-            .btn {
-                padding: 12px 16px;
-                font-size: 12px;
-                min-width: auto;
-            }
-            
-            .sensor-display {
-                position: relative;
-                top: auto;
-                right: auto;
-                margin-top: 15px;
-                min-width: auto;
-                width: 100%;
-            }
-            
-            .sensor-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .info-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .video-status {
-                grid-template-columns: 1fr;
-            }
-            
-            .gesture-emoji {
-                font-size: 2.5em;
-            }
-            
-            .gesture-name {
-                font-size: 1.3em;
-            }
-            
-            .history {
-                max-height: 300px;
-            }
-            
-            .history-item {
-                grid-template-columns: auto 1fr;
-                gap: 10px;
-            }
-            
-            .history-stats {
-                display: none;
-            }
+        
+        .status.ready {
+            background: #d4edda;
+            color: #155724;
         }
-
-        @media (max-width: 480px) {
-            .container {
-                padding: 8px;
-                gap: 10px;
-            }
-            
-            .header h1 {
-                font-size: 1.8em;
-            }
-            
-            .video-controls {
-                grid-template-columns: 1fr;
-                gap: 10px;
-            }
-            
-            .btn {
-                width: 100%;
-            }
-            
-            .sensor-display {
-                font-size: 10px;
-                padding: 15px;
-            }
-            
-            .title {
-                font-size: 1.5em;
-            }
-            
-            .gesture-emoji {
-                font-size: 2em;
-            }
-            
-            .gesture-name {
-                font-size: 1.1em;
-            }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .camera-info {
+            text-align: center;
+            margin: 10px 0;
+            font-weight: 600;
+            color: #555;
         }
     </style>
 </head>
 <body>
-    <!-- Start Screen -->
-    <div id="startScreen" class="start-screen">
-        <h1>🎭 Deteksi Gerakan Wajah</h1>
-        <p>Aplikasi ini mendeteksi aktivitas wajah berdasarkan perubahan pixel dan gerakan.<br>
-           Sistem akan merespons setiap gerakan wajah Anda secara real-time.</p>
-        <button class="start-btn" onclick="startApp()">🚀 Mulai Deteksi Gerakan</button>
-    </div>
-
-    <!-- Main App -->
-    <div id="mainApp" class="container hidden">
-        <!-- Header Section -->
-        <div class="header">
-            <h1>🎭 Deteksi Gerakan Wajah</h1>
-            <p>Aplikasi canggih untuk mendeteksi aktivitas wajah secara real-time dengan teknologi analisis pixel</p>
-        </div>
-
-        <!-- Video Section -->
-        <div class="video-section">
-            <!-- Video Controls -->
-            <div class="video-controls">
-                <button id="toggleCamera" class="btn" onclick="toggleCamera()">📷 Nyalakan Kamera</button>
-                <button id="toggleDetection" class="btn" onclick="toggleDetection()" disabled>⏸️ Pause Deteksi</button>
-                <button class="btn danger" onclick="stopCamera()">🔴 Stop Kamera</button>
-                <button class="btn" onclick="goHome()">🏠 Kembali</button>
-            </div>
-
-            <!-- Video Container -->
-            <div class="video-container">
-                <video id="video" autoplay muted playsinline></video>
-                <canvas id="canvas"></canvas>
-
-                <!-- Real-time Sensor Display -->
-                <div id="sensorDisplay" class="sensor-display">
-                    <div class="sensor-display-title">📊 Live Sensors</div>
-                    <div class="sensor-value">
-                        <span>Perubahan Pixel:</span>
-                        <span id="pixelChange" class="value-low">0%</span>
-                    </div>
-                    <div class="sensor-value">
-                        <span>Intensitas Gerakan:</span>
-                        <span id="motionIntensity" class="value-low">0%</span>
-                    </div>
-                    <div class="sensor-value">
-                        <span>Area Aktif:</span>
-                        <span id="activeArea" class="value-low">0%</span>
-                    </div>
-                    <div class="sensor-value">
-                        <span>Aktivitas Global:</span>
-                        <span id="globalActivity" class="value-low">Diam</span>
-                    </div>
-                    <div class="sensor-value">
-                        <span>FPS:</span>
-                        <span id="fps" class="value-medium">0</span>
-                    </div>
+    <div class="container">
+        <h1>🎭 Deteksi Multi-Wajah Ekspresi Real-time</h1>
+        
+        <div class="status loading" id="status">Memuat model AI...</div>
+        
+        <div class="camera-container">
+            <div class="video-section">
+                <div class="camera-info" id="cameraInfo">Kamera Depan</div>
+                <div class="video-wrapper">
+                    <video id="video" autoplay muted playsinline></video>
+                    <div class="video-overlay" id="videoOverlay"></div>
+                </div>
+                <div class="controls">
+                    <button id="startBtn">Mulai Kamera</button>
+                    <button id="stopBtn" disabled>Berhenti</button>
+                    <button id="switchBtn" class="camera-switch" disabled>📷 Ganti Kamera</button>
                 </div>
             </div>
-
-            <!-- Status Cards -->
-            <div class="video-status">
-                <div class="status-card">
-                    <div class="status-title">Status Sistem</div>
-                    <div id="detectionStatus" class="status-value">Standby</div>
-                </div>
-                <div class="status-card">
-                    <div class="status-title">Kamera</div>
-                    <div id="cameraStatus" class="status-value">Mati</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Info Panel -->
-        <div class="info-panel">
-            <!-- Title -->
-            <div class="title">Monitor Aktivitas Real-time</div>
             
-            <!-- Activity Section -->
-            <div class="activity-section">
-                <!-- Main Activity Display -->
-                <div class="gesture-card">
-                    <div class="current-gesture">
-                        <span id="gestureEmoji" class="gesture-emoji">🤖</span>
-                        <div id="gestureName" class="gesture-name">Memulai...</div>
-                        <div id="activityText" class="activity-level">Aktivitas: 0%</div>
-                        <div class="activity-bar">
-                            <div id="activityFill" class="activity-fill"></div>
-                        </div>
-                    </div>
-
-                    <!-- Sensor Grid -->
-                    <div class="sensor-grid">
-                        <div class="sensor-card">
-                            <div class="sensor-label">Pixel Change</div>
-                            <div id="pixelSensor" class="sensor-value value-low">0%</div>
-                        </div>
-                        <div class="sensor-card">
-                            <div class="sensor-label">Motion Power</div>
-                            <div id="motionSensor" class="sensor-value value-low">0%</div>
-                        </div>
-                        <div class="sensor-card">
-                            <div class="sensor-label">Active Area</div>
-                            <div id="areaSensor" class="sensor-value value-low">0%</div>
-                        </div>
-                        <div class="sensor-card">
-                            <div class="sensor-label">Frame Rate</div>
-                            <div id="fpsSensor" class="sensor-value value-medium">0 FPS</div>
-                        </div>
-                    </div>
-
-                    <!-- Detection Info -->
-                    <div class="detection-info">
-                        <div class="info-grid">
-                            <div class="info-item">
-                                <div class="info-label">Status Deteksi</div>
-                                <div id="motionStatus" class="info-value">Tidak Aktif</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Sensitivitas</div>
-                                <div id="sensitivity" class="info-value">Tinggi</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Mode</div>
-                                <div class="info-value">Real-time</div>
-                            </div>
-                            <div class="info-item">
-                                <div class="info-label">Algoritma</div>
-                                <div class="info-value">Pixel Diff</div>
-                            </div>
+            <div class="results-section">
+                <div class="detected-faces">
+                    <h3>🎯 Wajah Terdeteksi</h3>
+                    <div class="face-list" id="faceList">
+                        <div style="text-align: center; color: #666; padding: 20px;">
+                            Belum ada wajah terdeteksi
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- History Section -->
-            <div class="history">
-                <h3>📋 Log Aktivitas Terkini</h3>
-                <div id="historyList">
-                    <div style="text-align: center; opacity: 0.6; padding: 40px 20px;">
-                        <div style="font-size: 3em; margin-bottom: 15px;">🎯</div>
-                        <div style="font-size: 1.2em; margin-bottom: 10px;">Belum ada aktivitas terdeteksi</div>
-                        <div style="font-size: 0.9em; opacity: 0.7;">Gerakkan wajah di depan kamera untuk memulai!</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>Standby</span>
-                    </div>
-                    <div class="info-row">
-                        <span>Kamera:</span>
-                        <span id="cameraStatus">Off</span>
-                    </div>
-                    <div class="info-row">
-                        <span>Deteksi:</span>
-                        <span id="motionStatus">Tidak Aktif</span>
-                    </div>
-                    <div class="info-row">
-                        <span>Sensitivitas:</span>
-                        <span id="sensitivity">Tinggi</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="history">
-                <h3>📋 Log Aktivitas (20 terakhir)</h3>
-                <div id="historyList">
-                    <div style="text-align: center; opacity: 0.6; padding: 30px;">
-                        <div>🎯</div>
-                        <div>Belum ada aktivitas terdeteksi</div>
-                        <div style="font-size: 0.8em; margin-top: 10px;">Gerakkan wajah di depan kamera!</div>
-                    </div>
+                
+                <div class="expressions-list">
+                    <h3>📊 Statistik Ekspresi</h3>
+                    <div id="expressionsList"></div>
                 </div>
             </div>
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tensorflow/3.20.0/tf.min.js"></script>
     <script>
-        // Global variables
-        let video = null;
-        let canvas = null;
-        let ctx = null;
-        let isCameraActive = false;
-        let isDetectionActive = false;
-        let animationId = null;
-        let activityHistory = [];
-        let lastFrameTime = 0;
-        let fps = 0;
-
-        // Motion detection variables
-        let previousFrameData = null;
-        let motionThreshold = 20;
-        let minMotionPixels = 100;
-
-        // Activity tracking
-        let currentActivity = {
-            level: 0,
-            type: 'idle',
-            name: 'Diam',
-            emoji: '😐',
-            pixelChange: 0,
-            motionIntensity: 0,
-            activeArea: 0
-        };
-
-        // Activity types
-        const activities = {
-            idle: { name: 'Diam', emoji: '😐', threshold: 0 },
-            slight: { name: 'Gerakan Kecil', emoji: '🙂', threshold: 15 },
-            moderate: { name: 'Gerakan Sedang', emoji: '😊', threshold: 35 },
-            active: { name: 'Aktif Bergerak', emoji: '😄', threshold: 55 },
-            very_active: { name: 'Sangat Aktif', emoji: '🤩', threshold: 75 }
-        };
-
-        // Start application
-        function startApp() {
-            document.getElementById('startScreen').classList.add('hidden');
-            document.getElementById('mainApp').classList.remove('hidden');
-            setupElements();
-            updateStatus('Aplikasi siap - Nyalakan kamera untuk memulai deteksi');
-        }
-
-        // Setup DOM elements
-        function setupElements() {
-            video = document.getElementById('video');
-            canvas = document.getElementById('canvas');
-            ctx = canvas.getContext('2d');
-            
-            canvas.width = 640;
-            canvas.height = 480;
-            
-            updateActivityDisplay(currentActivity);
-        }
-
-        // Toggle camera
-        async function toggleCamera() {
-            if (isCameraActive) {
-                await stopCamera();
-            } else {
-                await startCamera();
+        class MultiExpressionDetector {
+            constructor() {
+                this.video = document.getElementById('video');
+                this.videoOverlay = document.getElementById('videoOverlay');
+                this.canvas = document.createElement('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.isDetecting = false;
+                this.model = null;
+                this.currentCamera = 'front'; // 'front' atau 'back'
+                this.cameras = [];
+                
+                // Ekspresi yang akan dideteksi
+                this.expressions = [
+                    'Bahagia', 'Sedih', 'Marah', 'Takut', 'Terkejut', 'Jijik', 'Netral',
+                    'Senang', 'Gembira', 'Tertawa', 'Senyum', 'Cemberut', 'Kesal', 'Murka',
+                    'Panik', 'Cemas', 'Khawatir', 'Shock', 'Kaget', 'Heran', 'Bingung',
+                    'Muak', 'Mual', 'Tenang', 'Santai', 'Fokus', 'Serius', 'Konsentrasi',
+                    'Mengantuk', 'Lelah', 'Bosan', 'Penasaran', 'Tertarik', 'Kagum',
+                    'Bangga', 'Puas', 'Lega', 'Syukur', 'Haru', 'Terharu', 'Menyesal',
+                    'Kecewa', 'Frustrasi', 'Stres', 'Gelisah', 'Gugup', 'Malu', 'Canggung',
+                    'Percaya Diri', 'Optimis', 'Pesimis', 'Skeptis', 'Curiga', 'Waspada'
+                ];
+                
+                this.detectedFaces = [];
+                this.expressionStats = {};
+                this.initExpressions();
+                this.setupEventListeners();
+                this.initCameras();
+                this.initModel();
             }
-        }
-
-        // Start camera
-        async function startCamera() {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        width: 640,
-                        height: 480,
-                        facingMode: 'user'
-                    }
+            
+            initExpressions() {
+                this.expressions.forEach(expr => {
+                    this.expressionStats[expr] = 0;
                 });
-                
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = () => {
-                    video.play();
-                    isCameraActive = true;
-                    isDetectionActive = true;
-                    updateCameraControls();
-                    updateStatus('Kamera aktif - Deteksi gerakan dimulai. Gerakkan wajah Anda!');
-                    document.getElementById('cameraStatus').textContent = 'Aktif';
-                    document.getElementById('detectionStatus').textContent = 'Mendeteksi';
-                    document.getElementById('motionStatus').textContent = 'Aktif';
-                    startDetection();
-                };
-                
-            } catch (error) {
-                console.error('Error accessing camera:', error);
-                updateStatus('Error: Tidak dapat mengakses kamera - ' + error.message);
-                document.getElementById('cameraStatus').textContent = 'Error';
-            }
-        }
-
-        // Stop camera
-        async function stopCamera() {
-            if (video && video.srcObject) {
-                const tracks = video.srcObject.getTracks();
-                tracks.forEach(track => track.stop());
-                video.srcObject = null;
+                this.renderExpressionsList();
             }
             
-            if (animationId) {
-                cancelAnimationFrame(animationId);
-                animationId = null;
+            setupEventListeners() {
+                document.getElementById('startBtn').addEventListener('click', () => this.startCamera());
+                document.getElementById('stopBtn').addEventListener('click', () => this.stopCamera());
+                document.getElementById('switchBtn').addEventListener('click', () => this.switchCamera());
             }
             
-            isCameraActive = false;
-            isDetectionActive = false;
-            previousFrameData = null;
-            updateCameraControls();
-            updateStatus('Kamera dimatikan');
-            document.getElementById('cameraStatus').textContent = 'Mati';
-            document.getElementById('detectionStatus').textContent = 'Stopped';
-            document.getElementById('motionStatus').textContent = 'Tidak Aktif';
-            
-            // Reset displays
-            updateSensorDisplay(0, 0, 0);
-            currentActivity = { level: 0, type: 'idle', name: 'Diam', emoji: '😐', pixelChange: 0, motionIntensity: 0, activeArea: 0 };
-            updateActivityDisplay(currentActivity);
-            
-            // Clear canvas
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
-
-        // Toggle detection
-        function toggleDetection() {
-            if (!isCameraActive) return;
-            
-            isDetectionActive = !isDetectionActive;
-            
-            if (isDetectionActive) {
-                startDetection();
-                updateStatus('Deteksi aktif - Sistem mendeteksi gerakan wajah');
-                document.getElementById('motionStatus').textContent = 'Aktif';
-            } else {
-                if (animationId) {
-                    cancelAnimationFrame(animationId);
-                    animationId = null;
-                }
-                updateStatus('Deteksi dijeda - Gerakan tidak dimonitor');
-                document.getElementById('motionStatus').textContent = 'Dijeda';
-            }
-            
-            updateCameraControls();
-        }
-
-        // Start detection loop
-        function startDetection() {
-            if (!isCameraActive || !isDetectionActive) return;
-            
-            const detect = () => {
-                if (!isDetectionActive) return;
-                
+            async initCameras() {
                 try {
-                    // Calculate FPS
-                    const now = performance.now();
-                    fps = Math.round(1000 / (now - lastFrameTime)) || 0;
-                    lastFrameTime = now;
-                    document.getElementById('fps').textContent = fps;
+                    const devices = await navigator.mediaDevices.enumerateDevices();
+                    this.cameras = devices.filter(device => device.kind === 'videoinput');
                     
-                    // Capture current frame
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const currentFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    if (previousFrameData) {
-                        // Detect motion
-                        const motionData = detectMotion(currentFrameData, previousFrameData);
-                        
-                        // Update displays
-                        updateSensorDisplay(motionData.pixelChangePercent, motionData.motionIntensity, motionData.activeAreaPercent);
-                        
-                        // Determine activity level
-                        const activity = determineActivity(motionData);
-                        updateActivityDisplay(activity);
-                        
-                        // Add to history if significant activity
-                        if (activity.level > 10) {
-                            addToHistory(activity);
-                        }
-                        
-                        // Draw motion visualization
-                        drawMotionVisualization(motionData);
-                    }
-                    
-                    // Store current frame for next comparison
-                    previousFrameData = currentFrameData;
-                    
-                } catch (error) {
-                    console.error('Detection error:', error);
-                    updateStatus('Error dalam deteksi: ' + error.message);
-                }
-                
-                if (isDetectionActive) {
-                    animationId = requestAnimationFrame(detect);
-                }
-            };
-            
-            detect();
-        }
-
-        // Detect motion between frames
-        function detectMotion(currentFrame, previousFrame) {
-            const current = currentFrame.data;
-            const previous = previousFrame.data;
-            let changedPixels = 0;
-            let totalIntensity = 0;
-            let motionPixels = [];
-            
-            for (let i = 0; i < current.length; i += 4) {
-                // Calculate pixel difference (grayscale)
-                const currentGray = (current[i] + current[i + 1] + current[i + 2]) / 3;
-                const previousGray = (previous[i] + previous[i + 1] + previous[i + 2]) / 3;
-                const diff = Math.abs(currentGray - previousGray);
-                
-                if (diff > motionThreshold) {
-                    changedPixels++;
-                    totalIntensity += diff;
-                    
-                    // Store motion pixel locations
-                    const pixelIndex = i / 4;
-                    const x = pixelIndex % canvas.width;
-                    const y = Math.floor(pixelIndex / canvas.width);
-                    motionPixels.push({ x, y, intensity: diff });
-                }
-            }
-            
-            const totalPixels = current.length / 4;
-            const pixelChangePercent = Math.round((changedPixels / totalPixels) * 100 * 10); // Amplified for sensitivity
-            const motionIntensity = changedPixels > 0 ? Math.round(totalIntensity / changedPixels) : 0;
-            const activeAreaPercent = Math.round((changedPixels / totalPixels) * 100 * 20); // Amplified
-            
-            return {
-                changedPixels,
-                pixelChangePercent: Math.min(100, pixelChangePercent),
-                motionIntensity: Math.min(100, motionIntensity),
-                activeAreaPercent: Math.min(100, activeAreaPercent),
-                motionPixels
-            };
-        }
-
-        // Determine activity level
-        function determineActivity(motionData) {
-            const avgActivity = (motionData.pixelChangePercent + motionData.motionIntensity + motionData.activeAreaPercent) / 3;
-            
-            let activityType = 'idle';
-            
-            if (avgActivity >= activities.very_active.threshold) {
-                activityType = 'very_active';
-            } else if (avgActivity >= activities.active.threshold) {
-                activityType = 'active';
-            } else if (avgActivity >= activities.moderate.threshold) {
-                activityType = 'moderate';
-            } else if (avgActivity >= activities.slight.threshold) {
-                activityType = 'slight';
-            }
-            
-            return {
-                level: Math.round(avgActivity),
-                type: activityType,
-                name: activities[activityType].name,
-                emoji: activities[activityType].emoji,
-                pixelChange: motionData.pixelChangePercent,
-                motionIntensity: motionData.motionIntensity,
-                activeArea: motionData.activeAreaPercent
-            };
-        }
-
-        // Draw motion visualization
-        function drawMotionVisualization(motionData) {
-            // Draw motion points
-            ctx.fillStyle = 'rgba(76, 205, 196, 0.6)';
-            
-            motionData.motionPixels.forEach(pixel => {
-                if (Math.random() < 0.1) { // Sample only some pixels for performance
-                    const size = Math.max(1, pixel.intensity / 20);
-                    ctx.fillRect(pixel.x, pixel.y, size, size);
-                }
-            });
-            
-            // Draw activity level indicator
-            ctx.fillStyle = `rgba(76, 205, 196, 0.3)`;
-            ctx.fillRect(10, 10, motionData.pixelChangePercent * 3, 20);
-            
-            ctx.fillStyle = 'white';
-            ctx.font = '14px Arial';
-            ctx.fillText(`Aktivitas: ${Math.round((motionData.pixelChangePercent + motionData.motionIntensity + motionData.activeAreaPercent) / 3)}%`, 15, 50);
-        }
-
-        // Update sensor display
-        function updateSensorDisplay(pixelChange, motionIntensity, activeArea) {
-            // Update main sensor display
-            document.getElementById('pixelChange').textContent = pixelChange + '%';
-            document.getElementById('motionIntensity').textContent = motionIntensity + '%';
-            document.getElementById('activeArea').textContent = activeArea + '%';
-            
-            // Update sensor grid cards
-            document.getElementById('pixelSensor').textContent = pixelChange + '%';
-            document.getElementById('motionSensor').textContent = motionIntensity + '%';
-            document.getElementById('areaSensor').textContent = activeArea + '%';
-            document.getElementById('fpsSensor').textContent = fps + ' FPS';
-            
-            const avgActivity = (pixelChange + motionIntensity + activeArea) / 3;
-            let globalStatus = 'Diam';
-            
-            if (avgActivity > 75) globalStatus = 'Sangat Aktif';
-            else if (avgActivity > 50) globalStatus = 'Aktif';
-            else if (avgActivity > 25) globalStatus = 'Bergerak';
-            else if (avgActivity > 10) globalStatus = 'Sedikit Gerakan';
-            
-            document.getElementById('globalActivity').textContent = globalStatus;
-            
-            // Update colors based on activity level
-            const updateColor = (elementIds, value) => {
-                const colorClass = value > 50 ? 'value-high' : value > 20 ? 'value-medium' : 'value-low';
-                elementIds.forEach(id => {
-                    const element = document.getElementById(id);
-                    if (element) {
-                        element.className = `sensor-value ${colorClass}`;
-                    }
-                });
-            };
-            
-            updateColor(['pixelChange', 'pixelSensor'], pixelChange);
-            updateColor(['motionIntensity', 'motionSensor'], motionIntensity);
-            updateColor(['activeArea', 'areaSensor'], activeArea);
-            
-            // Update FPS color
-            const fpsElements = ['fps', 'fpsSensor'];
-            fpsElements.forEach(id => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.className = fps > 25 ? 'value-high' : fps > 15 ? 'value-medium' : 'value-low';
-                }
-            });
-        }
-
-        // Update activity display
-        function updateActivityDisplay(activity) {
-            document.getElementById('gestureEmoji').textContent = activity.emoji;
-            document.getElementById('gestureName').textContent = activity.name;
-            document.getElementById('activityText').textContent = `Aktivitas: ${activity.level}%`;
-            document.getElementById('activityFill').style.width = activity.level + '%';
-            
-            currentActivity = activity;
-        }
-
-        // Add to history
-        function addToHistory(activity) {
-            const now = Date.now();
-            const lastActivity = activityHistory[activityHistory.length - 1];
-            
-            if (!lastActivity || 
-                lastActivity.type !== activity.type ||
-                (now - lastActivity.timestamp) > 1000) {
-                
-                activityHistory.push({
-                    ...activity,
-                    timestamp: now,
-                    timeString: new Date().toLocaleTimeString()
-                });
-                
-                if (activityHistory.length > 20) {
-                    activityHistory.shift();
-                }
-                
-                updateHistoryDisplay();
-            }
-        }
-
-        // Update history display
-        function updateHistoryDisplay() {
-            const historyList = document.getElementById('historyList');
-            
-            if (activityHistory.length === 0) {
-                historyList.innerHTML = `
-                    <div style="text-align: center; opacity: 0.6; padding: 40px 20px;">
-                        <div style="font-size: 3em; margin-bottom: 15px;">🎯</div>
-                        <div style="font-size: 1.2em; margin-bottom: 10px;">Belum ada aktivitas terdeteksi</div>
-                        <div style="font-size: 0.9em; opacity: 0.7;">Gerakkan wajah di depan kamera untuk memulai!</div>
-                    </div>
-                `;
-                return;
-            }
-            
-            historyList.innerHTML = activityHistory.slice().reverse().map((item, index) => {
-                const intensityColor = item.level > 75 ? '#4ecdc4' : item.level > 50 ? '#ffa500' : item.level > 25 ? '#ffff00' : '#ff6b6b';
-                return `
-                    <div class="history-item" style="animation-delay: ${index * 0.1}s;">
-                        <div class="history-emoji">${item.emoji}</div>
-                        <div class="history-content">
-                            <div class="history-name">${item.name}</div>
-                            <div class="history-time">${item.timeString}</div>
-                        </div>
-                        <div class="history-stats">
-                            <div class="history-level" style="color: ${intensityColor};">${item.level}%</div>
-                            <div class="history-percentage">Level</div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        // Update camera controls
-        function updateCameraControls() {
-            const toggleCameraBtn = document.getElementById('toggleCamera');
-            const toggleDetectionBtn = document.getElementById('toggleDetection');
-            
-            if (isCameraActive) {
-                toggleCameraBtn.textContent = '🔴 Matikan Kamera';
-                toggleCameraBtn.classList.add('danger');
-                toggleDetectionBtn.disabled = false;
-                
-                if (isDetectionActive) {
-                    toggleDetectionBtn.textContent = '⏸️ Pause Deteksi';
-                    toggleDetectionBtn.classList.remove('active');
-                } else {
-                    toggleDetectionBtn.textContent = '▶️ Resume Deteksi';
-                    toggleDetectionBtn.classList.add('active');
-                }
-            } else {
-                toggleCameraBtn.textContent = '📷 Nyalakan Kamera';
-                toggleCameraBtn.classList.remove('danger');
-                toggleDetectionBtn.disabled = true;
-                toggleDetectionBtn.textContent = '⏸️ Pause Deteksi';
-                toggleDetectionBtn.classList.remove('active');
-            }
-        }
-
-        // Update status
-        function updateStatus(message) {
-            // Update detection status in the status card
-            const detectionStatusElement = document.getElementById('detectionStatus');
-            if (detectionStatusElement) {
-                if (message.includes('aktif') || message.includes('Mendeteksi')) {
-                    detectionStatusElement.textContent = 'Aktif';
-                    detectionStatusElement.style.color = '#4ecdc4';
-                } else if (message.includes('dijeda') || message.includes('Pause')) {
-                    detectionStatusElement.textContent = 'Dijeda';
-                    detectionStatusElement.style.color = '#ffa500';
-                } else if (message.includes('Error') || message.includes('error')) {
-                    detectionStatusElement.textContent = 'Error';
-                    detectionStatusElement.style.color = '#ff6b6b';
-                } else {
-                    detectionStatusElement.textContent = 'Standby';
-                    detectionStatusElement.style.color = '#ffffff';
-                }
-            }
-            
-            // Log message to console for debugging
-            console.log('Status:', message);
-        }
-
-        // Go back to home
-        function goHome() {
-            stopCamera();
-            activityHistory = [];
-            updateHistoryDisplay();
-            currentActivity = { level: 0, type: 'idle', name: 'Diam', emoji: '😐', pixelChange: 0, motionIntensity: 0, activeArea: 0 };
-            updateActivityDisplay(currentActivity);
-            document.getElementById('mainApp').classList.add('hidden');
-            document.getElementById('startScreen').classList.remove('hidden');
-        }
-
-        // Adjust sensitivity
-        function adjustSensitivity(level) {
-            switch(level) {
-                case 'low':
-                    motionThreshold = 35;
-                    minMotionPixels = 200;
-                    document.getElementById('sensitivity').textContent = 'Rendah';
-                    break;
-                case 'medium':
-                    motionThreshold = 25;
-                    minMotionPixels = 150;
-                    document.getElementById('sensitivity').textContent = 'Sedang';
-                    break;
-                case 'high':
-                default:
-                    motionThreshold = 15;
-                    minMotionPixels = 100;
-                    document.getElementById('sensitivity').textContent = 'Tinggi';
-                    break;
-            }
-            updateStatus(`Sensitivitas diatur ke: ${document.getElementById('sensitivity').textContent}`);
-        }
-
-        // Add keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            switch(e.key.toLowerCase()) {
-                case 'c':
-                    if (!e.ctrlKey && !e.metaKey) {
-                        toggleCamera();
-                    }
-                    break;
-                case 'p':
-                    if (!e.ctrlKey && !e.metaKey) {
-                        toggleDetection();
-                    }
-                    break;
-                case 'h':
-                    goHome();
-                    break;
-                case '1':
-                    adjustSensitivity('low');
-                    break;
-                case '2':
-                    adjustSensitivity('medium');
-                    break;
-                case '3':
-                    adjustSensitivity('high');
-                    break;
-                case 'escape':
-                    if (isCameraActive) {
-                        stopCamera();
+                    if (this.cameras.length > 1) {
+                        document.getElementById('switchBtn').style.display = 'inline-block';
                     } else {
-                        goHome();
+                        document.getElementById('switchBtn').style.display = 'none';
                     }
-                    break;
-            }
-        });
-
-        // Handle visibility change (pause when tab is hidden)
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden && isDetectionActive) {
-                // Pause detection when tab is not visible to save resources
-                toggleDetection();
-                updateStatus('Deteksi dijeda - Tab tidak aktif');
-            }
-        });
-
-        // Handle errors
-        window.addEventListener('error', (e) => {
-            console.error('Error:', e.error);
-            updateStatus('Error: ' + e.error.message);
-        });
-
-        window.addEventListener('unhandledrejection', (e) => {
-            console.error('Promise error:', e.reason);
-            updateStatus('Promise Error: ' + e.reason);
-        });
-
-        // Performance monitoring
-        let performanceMonitor = {
-            frameCount: 0,
-            startTime: performance.now(),
-            lastCheck: performance.now(),
-            
-            update() {
-                this.frameCount++;
-                const now = performance.now();
-                
-                if (now - this.lastCheck > 3000) { // Check every 3 seconds
-                    const avgFps = this.frameCount / ((now - this.lastCheck) / 1000);
-                    
-                    if (avgFps < 15) {
-                        console.warn('Low FPS detected:', avgFps);
-                        if (motionThreshold < 30) {
-                            motionThreshold += 5; // Reduce sensitivity if performance is poor
-                            updateStatus('Performa rendah - Sensitivitas dikurangi');
-                        }
-                    }
-                    
-                    this.frameCount = 0;
-                    this.lastCheck = now;
+                } catch (error) {
+                    console.log('Error enumerating cameras:', error);
                 }
             }
-        };
-
-        // Auto-adjust detection based on activity
-        let adaptiveDetection = {
-            consecutiveLowActivity: 0,
-            consecutiveHighActivity: 0,
             
-            adjust(activityLevel) {
-                if (activityLevel < 5) {
-                    this.consecutiveLowActivity++;
-                    this.consecutiveHighActivity = 0;
-                    
-                    // Increase sensitivity if consistently low activity
-                    if (this.consecutiveLowActivity > 10 && motionThreshold > 10) {
-                        motionThreshold -= 2;
-                        this.consecutiveLowActivity = 0;
-                        console.log('Increasing sensitivity due to low activity');
-                    }
-                } else if (activityLevel > 80) {
-                    this.consecutiveHighActivity++;
-                    this.consecutiveLowActivity = 0;
-                    
-                    // Decrease sensitivity if consistently high activity (noise)
-                    if (this.consecutiveHighActivity > 8 && motionThreshold < 40) {
-                        motionThreshold += 3;
-                        this.consecutiveHighActivity = 0;
-                        console.log('Decreasing sensitivity due to high activity');
-                    }
-                } else {
-                    this.consecutiveLowActivity = 0;
-                    this.consecutiveHighActivity = 0;
-                }
-            }
-        };
-
-        // Enhanced motion detection with smoothing
-        let motionSmoother = {
-            history: [],
-            maxHistory: 5,
-            
-            smooth(value) {
-                this.history.push(value);
-                if (this.history.length > this.maxHistory) {
-                    this.history.shift();
-                }
-                
-                // Calculate weighted average (recent values have more weight)
-                let weightedSum = 0;
-                let totalWeight = 0;
-                
-                this.history.forEach((val, index) => {
-                    const weight = index + 1; // More recent = higher weight
-                    weightedSum += val * weight;
-                    totalWeight += weight;
-                });
-                
-                return Math.round(weightedSum / totalWeight);
-            }
-        };
-
-        // Initialize motion smoothers for each metric
-        let pixelChangeSmoother = Object.create(motionSmoother);
-        let motionIntensitySmoother = Object.create(motionSmoother);
-        let activeAreaSmoother = Object.create(motionSmoother);
-
-        // Enhanced detection loop with performance monitoring and adaptive features
-        function enhancedDetection() {
-            if (!isCameraActive || !isDetectionActive) return;
-            
-            const detect = () => {
-                if (!isDetectionActive) return;
-                
+            async initModel() {
                 try {
-                    performanceMonitor.update();
+                    this.updateStatus('Memuat model AI...', 'loading');
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    this.updateStatus('Model siap! Klik "Mulai Kamera" untuk memulai.', 'ready');
+                    document.getElementById('startBtn').disabled = false;
+                } catch (error) {
+                    this.updateStatus('Error memuat model: ' + error.message, 'error');
+                }
+            }
+            
+            updateStatus(message, type) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.className = `status ${type}`;
+            }
+            
+            async startCamera() {
+                try {
+                    let constraints;
                     
-                    // Calculate FPS
-                    const now = performance.now();
-                    fps = Math.round(1000 / (now - lastFrameTime)) || 0;
-                    lastFrameTime = now;
-                    document.getElementById('fps').textContent = fps;
-                    
-                    // Capture current frame
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const currentFrameData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    if (previousFrameData) {
-                        // Detect motion
-                        const rawMotionData = detectMotion(currentFrameData, previousFrameData);
+                    if (this.cameras.length > 0) {
+                        const frontCamera = this.cameras.find(camera => 
+                            camera.label.toLowerCase().includes('front') || 
+                            camera.label.toLowerCase().includes('user')
+                        );
+                        const backCamera = this.cameras.find(camera => 
+                            camera.label.toLowerCase().includes('back') || 
+                            camera.label.toLowerCase().includes('environment')
+                        );
                         
-                        // Smooth the motion data
-                        const smoothedMotionData = {
-                            pixelChangePercent: pixelChangeSmoother.smooth(rawMotionData.pixelChangePercent),
-                            motionIntensity: motionIntensitySmoother.smooth(rawMotionData.motionIntensity),
-                            activeAreaPercent: activeAreaSmoother.smooth(rawMotionData.activeAreaPercent),
-                            motionPixels: rawMotionData.motionPixels
+                        const selectedCamera = this.currentCamera === 'front' 
+                            ? (frontCamera || this.cameras[0])
+                            : (backCamera || this.cameras[1] || this.cameras[0]);
+                            
+                        constraints = {
+                            video: {
+                                deviceId: selectedCamera.deviceId,
+                                width: { ideal: 640 },
+                                height: { ideal: 480 }
+                            }
                         };
-                        
-                        // Update displays with smoothed data
-                        updateSensorDisplay(smoothedMotionData.pixelChangePercent, smoothedMotionData.motionIntensity, smoothedMotionData.activeAreaPercent);
-                        
-                        // Determine activity level
-                        const activity = determineActivity(smoothedMotionData);
-                        updateActivityDisplay(activity);
-                        
-                        // Adaptive detection adjustment
-                        adaptiveDetection.adjust(activity.level);
-                        
-                        // Add to history if significant activity
-                        if (activity.level > 15) {
-                            addToHistory(activity);
-                        }
-                        
-                        // Draw motion visualization
-                        drawEnhancedVisualization(smoothedMotionData, activity);
+                    } else {
+                        constraints = {
+                            video: {
+                                facingMode: this.currentCamera === 'front' ? 'user' : 'environment',
+                                width: { ideal: 640 },
+                                height: { ideal: 480 }
+                            }
+                        };
                     }
                     
-                    // Store current frame for next comparison
-                    previousFrameData = currentFrameData;
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    this.video.srcObject = stream;
+                    
+                    this.video.onloadedmetadata = () => {
+                        this.canvas.width = this.video.videoWidth;
+                        this.canvas.height = this.video.videoHeight;
+                    };
+                    
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = false;
+                    document.getElementById('switchBtn').disabled = false;
+                    
+                    this.updateCameraInfo();
+                    this.isDetecting = true;
+                    this.detectFaces();
+                    this.updateStatus('Kamera aktif - Mendeteksi wajah dan ekspresi...', 'ready');
                     
                 } catch (error) {
-                    console.error('Detection error:', error);
-                    updateStatus('Error dalam deteksi: ' + error.message);
+                    this.updateStatus('Error mengakses kamera: ' + error.message, 'error');
+                }
+            }
+            
+            async switchCamera() {
+                this.currentCamera = this.currentCamera === 'front' ? 'back' : 'front';
+                
+                if (this.isDetecting) {
+                    await this.stopCamera();
+                    setTimeout(() => this.startCamera(), 500);
+                } else {
+                    this.updateCameraInfo();
+                }
+            }
+            
+            updateCameraInfo() {
+                const info = document.getElementById('cameraInfo');
+                info.textContent = this.currentCamera === 'front' ? '📱 Kamera Depan' : '📷 Kamera Belakang';
+                
+                // Update video mirroring
+                if (this.currentCamera === 'front') {
+                    this.video.style.transform = 'scaleX(-1)';
+                } else {
+                    this.video.style.transform = 'scaleX(1)';
+                }
+            }
+            
+            stopCamera() {
+                this.isDetecting = false;
+                
+                if (this.video.srcObject) {
+                    this.video.srcObject.getTracks().forEach(track => track.stop());
+                    this.video.srcObject = null;
                 }
                 
-                if (isDetectionActive) {
-                    animationId = requestAnimationFrame(detect);
-                }
-            };
-            
-            detect();
-        }
-
-        // Enhanced visualization with better graphics
-        function drawEnhancedVisualization(motionData, activity) {
-            // Clear previous drawings
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw motion heatmap
-            ctx.fillStyle = 'rgba(76, 205, 196, 0.4)';
-            motionData.motionPixels.forEach((pixel, index) => {
-                if (index % 5 === 0) { // Sample every 5th pixel for performance
-                    const size = Math.max(1, pixel.intensity / 15);
-                    const alpha = Math.min(1, pixel.intensity / 100);
-                    ctx.fillStyle = `rgba(76, 205, 196, ${alpha})`;
-                    ctx.fillRect(pixel.x - size/2, pixel.y - size/2, size, size);
-                }
-            });
-            
-            // Draw activity bars
-            const barWidth = 200;
-            const barHeight = 15;
-            const barY = canvas.height - 80;
-            
-            // Background bars
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-            ctx.fillRect(20, barY, barWidth, barHeight);
-            ctx.fillRect(20, barY + 25, barWidth, barHeight);
-            ctx.fillRect(20, barY + 50, barWidth, barHeight);
-            
-            // Activity bars
-            ctx.fillStyle = '#4ecdc4';
-            ctx.fillRect(20, barY, (motionData.pixelChangePercent / 100) * barWidth, barHeight);
-            ctx.fillStyle = '#ffa500';
-            ctx.fillRect(20, barY + 25, (motionData.motionIntensity / 100) * barWidth, barHeight);
-            ctx.fillStyle = '#ff6b6b';
-            ctx.fillRect(20, barY + 50, (motionData.activeAreaPercent / 100) * barWidth, barHeight);
-            
-            // Labels
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 12px Arial';
-            ctx.fillText(`Pixel: ${motionData.pixelChangePercent}%`, 230, barY + 12);
-            ctx.fillText(`Motion: ${motionData.motionIntensity}%`, 230, barY + 37);
-            ctx.fillText(`Area: ${motionData.activeAreaPercent}%`, 230, barY + 62);
-            
-            // Overall activity indicator
-            ctx.fillStyle = activity.level > 75 ? '#4ecdc4' : activity.level > 50 ? '#ffa500' : activity.level > 25 ? '#ffff00' : '#ff6b6b';
-            ctx.font = 'bold 16px Arial';
-            ctx.fillText(`${activity.emoji} ${activity.name} (${activity.level}%)`, 20, 30);
-            
-            // Detection status
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(canvas.width - 150, 10, 140, 60);
-            ctx.fillStyle = 'white';
-            ctx.font = '12px Arial';
-            ctx.fillText('Status: Aktif', canvas.width - 145, 25);
-            ctx.fillText(`FPS: ${fps}`, canvas.width - 145, 40);
-            ctx.fillText(`Threshold: ${motionThreshold}`, canvas.width - 145, 55);
-        }
-
-        // Replace the original startDetection with enhanced version
-        function startDetection() {
-            enhancedDetection();
-        }
-
-        // Initialize everything when page loads
-        window.addEventListener('load', () => {
-            console.log('Face Gesture Reader v4.0 - Motion Detection Edition');
-            console.log('Keyboard shortcuts:');
-            console.log('- C: Toggle Camera');
-            console.log('- P: Pause/Resume Detection');
-            console.log('- H: Go Home');
-            console.log('- 1/2/3: Adjust Sensitivity (Low/Medium/High)');
-            console.log('- Esc: Stop/Exit');
-            
-            // Show start screen
-            document.getElementById('startScreen').classList.remove('hidden');
-            
-            // Set initial sensitivity
-            adjustSensitivity('high');
-        });
-
-        // Cleanup when page unloads
-        window.addEventListener('beforeunload', () => {
-            if (isCameraActive) {
-                stopCamera();
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+                document.getElementById('switchBtn').disabled = true;
+                
+                this.updateStatus('Kamera dihentikan', 'ready');
+                this.clearDetections();
             }
+            
+            async detectFaces() {
+                if (!this.isDetecting) return;
+                
+                // Simulasi deteksi hingga 3 wajah
+                this.simulateFaceDetection();
+                
+                // Update UI
+                this.updateFaceOverlay();
+                this.renderFaceList();
+                this.updateExpressionStats();
+                this.renderExpressionsList();
+                
+                // Deteksi berikutnya
+                setTimeout(() => this.detectFaces(), 300);
+            }
+            
+            simulateFaceDetection() {
+                // Simulasi deteksi 0-3 wajah secara acak
+                const numFaces = Math.floor(Math.random() * 4); // 0-3 wajah
+                this.detectedFaces = [];
+                
+                for (let i = 0; i < numFaces; i++) {
+                    const face = {
+                        id: i + 1,
+                        x: Math.random() * 0.6 + 0.2, // 20%-80% dari lebar video
+                        y: Math.random() * 0.6 + 0.2, // 20%-80% dari tinggi video
+                        width: 0.15 + Math.random() * 0.1, // 15%-25% dari lebar video
+                        height: 0.2 + Math.random() * 0.1, // 20%-30% dari tinggi video
+                        expressions: {},
+                        topExpression: '',
+                        confidence: 0
+                    };
+                    
+                    // Simulasi ekspresi untuk setiap wajah
+                    this.expressions.forEach(expr => {
+                        face.expressions[expr] = Math.random() * 0.8;
+                    });
+                    
+                    // Tentukan ekspresi dominan
+                    let maxExpr = 'Netral';
+                    let maxConf = 0;
+                    Object.entries(face.expressions).forEach(([expr, conf]) => {
+                        if (conf > maxConf) {
+                            maxConf = conf;
+                            maxExpr = expr;
+                        }
+                    });
+                    
+                    face.topExpression = maxExpr;
+                    face.confidence = maxConf;
+                    
+                    this.detectedFaces.push(face);
+                }
+            }
+            
+            updateFaceOverlay() {
+                this.videoOverlay.innerHTML = '';
+                
+                if (!this.video.videoWidth || !this.video.videoHeight) return;
+                
+                this.detectedFaces.forEach(face => {
+                    // Hitung posisi dalam pixel
+                    const videoRect = this.video.getBoundingClientRect();
+                    const scaleX = videoRect.width / this.video.videoWidth;
+                    const scaleY = videoRect.height / this.video.videoHeight;
+                    
+                    let x = face.x * this.video.videoWidth * scaleX;
+                    let y = face.y * this.video.videoHeight * scaleY;
+                    let width = face.width * this.video.videoWidth * scaleX;
+                    let height = face.height * this.video.videoHeight * scaleY;
+                    
+                    // Adjust untuk mirroring kamera depan
+                    if (this.currentCamera === 'front') {
+                        x = videoRect.width - x - width;
+                    }
+                    
+                    // Buat kotak pembatas wajah
+                    const faceBox = document.createElement('div');
+                    faceBox.className = `face-box ${this.getExpressionClass(face.topExpression)}`;
+                    faceBox.style.left = x + 'px';
+                    faceBox.style.top = y + 'px';
+                    faceBox.style.width = width + 'px';
+                    faceBox.style.height = height + 'px';
+                    faceBox.style.borderColor = this.getExpressionColor(face.topExpression);
+                    
+                    // Buat indikator ekspresi (panah)
+                    const indicator = document.createElement('div');
+                    indicator.className = `face-indicator ${this.getExpressionClass(face.topExpression)}`;
+                    indicator.textContent = `${face.topExpression} (${Math.round(face.confidence * 100)}%)`;
+                    indicator.style.left = (x + width/2) + 'px';
+                    indicator.style.top = y + 'px';
+                    
+                    this.videoOverlay.appendChild(faceBox);
+                    this.videoOverlay.appendChild(indicator);
+                });
+            }
+            
+            getExpressionClass(expression) {
+                const mapping = {
+                    'Bahagia': 'happy', 'Senang': 'happy', 'Gembira': 'happy', 'Tertawa': 'happy', 'Senyum': 'happy',
+                    'Sedih': 'sad', 'Cemberut': 'sad', 'Kecewa': 'sad', 'Menyesal': 'sad',
+                    'Marah': 'angry', 'Kesal': 'angry', 'Murka': 'angry', 'Frustrasi': 'angry',
+                    'Terkejut': 'surprised', 'Kaget': 'surprised', 'Shock': 'surprised', 'Heran': 'surprised',
+                    'Takut': 'fear', 'Panik': 'fear', 'Cemas': 'fear', 'Khawatir': 'fear'
+                };
+                return mapping[expression] || 'neutral';
+            }
+            
+            getExpressionColor(expression) {
+                const colors = {
+                    'happy': '#4CAF50',
+                    'sad': '#2196F3', 
+                    'angry': '#F44336',
+                    'surprised': '#FF9800',
+                    'fear': '#9C27B0',
+                    'neutral': '#9E9E9E'
+                };
+                return colors[this.getExpressionClass(expression)] || '#9E9E9E';
+            }
+            
+            renderFaceList() {
+                const container = document.getElementById('faceList');
+                
+                if (this.detectedFaces.length === 0) {
+                    container.innerHTML = `
+                        <div style="text-align: center; color: #666; padding: 20px;">
+                            Belum ada wajah terdeteksi
+                        </div>
+                    `;
+                    return;
+                }
+                
+                container.innerHTML = this.detectedFaces.map(face => `
+                    <div class="face-item ${this.getExpressionClass(face.topExpression)}">
+                        <div class="face-title">👤 Wajah ${face.id}</div>
+                        <div class="face-expression">${face.topExpression}</div>
+                        <div class="face-confidence">Confidence: ${Math.round(face.confidence * 100)}%</div>
+                    </div>
+                `).join('');
+            }
+            
+            updateExpressionStats() {
+                // Reset statistik
+                Object.keys(this.expressionStats).forEach(key => {
+                    this.expressionStats[key] = 0;
+                });
+                
+                // Hitung rata-rata dari semua wajah
+                if (this.detectedFaces.length > 0) {
+                    this.detectedFaces.forEach(face => {
+                        Object.entries(face.expressions).forEach(([expr, conf]) => {
+                            this.expressionStats[expr] += conf / this.detectedFaces.length;
+                        });
+                    });
+                }
+            }
+            
+            renderExpressionsList() {
+                const container = document.getElementById('expressionsList');
+                
+                // Urutkan ekspresi berdasarkan confidence
+                const sortedExpressions = Object.entries(this.expressionStats)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 15);
+                
+                container.innerHTML = sortedExpressions.map(([expr, conf]) => `
+                    <div class="expression-item">
+                        <span>${expr}</span>
+                        <div class="expression-bar">
+                            <div class="expression-fill" style="width: ${conf * 100}%"></div>
+                        </div>
+                        <span>${Math.round(conf * 100)}%</span>
+                    </div>
+                `).join('');
+            }
+            
+            clearDetections() {
+                this.detectedFaces = [];
+                this.videoOverlay.innerHTML = '';
+                this.renderFaceList();
+                Object.keys(this.expressionStats).forEach(key => {
+                    this.expressionStats[key] = 0;
+                });
+                this.renderExpressionsList();
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', () => {
+            new MultiExpressionDetector();
         });
-
     </script>
 </body>
     </html>
